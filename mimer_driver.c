@@ -306,9 +306,11 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     num_data_src_opts = sizeof(data_src_opts) / sizeof(data_src_opt);
 
+    MimerSession session = NULL;
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
+
     handle->last_error = 0;
-    dbh->driver_data = handle;
+    handle->session = session;
 
     /**
      * @brief Parsing the DSN
@@ -318,20 +320,16 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
      */
     php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts, num_data_src_opts);
 
-
-    MimerSession session = NULL;
-
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     int32_t return_code = MimerBeginSession8(data_src_opts[dbname_opt].optval, dbh->username, dbh->password, &session);
 
     if (!MIMER_SUCCEEDED(return_code) || session == NULL) {
         handle->last_error = return_code;
         pdo_mimer_error(dbh);
+        goto cleanup;
     }
 
-    handle->session = session;
     php_printf("Connected to Mimer SQL (db=%s, user=%s, pwd=%s)\n", data_src_opts[dbname_opt].optval, dbh->username, dbh->password);
-
 
     /* free up memory no longer needed */
     for (int i = 0; i < num_data_src_opts; i++) {
@@ -339,6 +337,11 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
             efree(data_src_opts[i].optval);
         }
     }
+
+    cleanup:
+
+    /* pass Mimer session handle to PDO handle */
+    dbh->driver_data = handle;
 
     /* pass the methods the Mimer PDO driver uses to PDO */
     dbh->methods = &mimer_methods;
