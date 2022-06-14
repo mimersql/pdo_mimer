@@ -128,7 +128,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     dbh->driver_data = handle;
 
     /**
-     * Parsing the DSN
+     * @brief Parsing the DSN
      *
      * This function, provided by php-src/ext/pdo/pdo.c, parses the user-provided DSN
      * during the construction of the PDO and copies each value (optval) to the respective key (optname).
