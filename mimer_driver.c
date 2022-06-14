@@ -30,9 +30,9 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
 
     // TODO: convert Mimer error codes (int32_t) to SQLSTATE (char[6])
 
-
-    php_printf("Something went wrong -- %s:%d", file, line);
-    pdo_throw_exception(handle->last_error, "Something went wrong.", GENERAL_ERROR_SQLSTATE);
+    zend_string *err_msg = strpprintf(0, "Something went wrong -- %s:%d", file, line);
+    php_printf("%s", ZSTR_VAL(err_msg));
+    pdo_throw_exception(handle->last_error, ZSTR_VAL(err_msg), GENERAL_ERROR_SQLSTATE);
 }
 /* }}} */
 
@@ -197,11 +197,10 @@ static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info)
     if (last_error == MIMER_SUCCESS) {
         return;
     }
+    zend_string *err_msg = strpprintf(0, "Error -- " __FILE__ ":%d", __LINE__);
 
-    char *err_msg = ecalloc(128, sizeof(char));
-    sprintf(err_msg, "Error -- " __FILE__ ":%d", __LINE__);
     add_next_index_long(info, last_error);
-    add_next_index_string(info, err_msg);
+    add_next_index_string(info, ZSTR_VAL(err_msg));
 }
 /* }}} */
 
