@@ -33,6 +33,8 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     zend_string *err_msg = strpprintf(0, "Something went wrong -- %s:%d", file, line);
     php_printf("%s", ZSTR_VAL(err_msg));
     pdo_throw_exception(handle->last_error, ZSTR_VAL(err_msg), GENERAL_ERROR_SQLSTATE);
+
+    return handle->last_error;
 }
 /* }}} */
 
