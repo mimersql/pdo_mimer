@@ -163,6 +163,26 @@ static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info)
 }
 /* }}} */
 
+/* {{{ pdo_mimer_check_liveness */
+static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh)
+{
+    if (!pdo_mimer_check_session(dbh)) {
+        return FAILURE;
+    }
+
+    pdo_mimer_handle *handle = dbh->driver_data;
+    int32_t return_code = MimerPing(handle->session);
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return FAILURE;
+    }
+
+    return SUCCESS;
+}
+/* }}} */
+
 /* {{{ pdo_mimer_request_shutdown */
 static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
 {
@@ -200,7 +220,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         NULL,   /* last_id not supported */
         pdo_mimer_fetch_err,   /* fetch error method */
         NULL,   /* handle get attribute method */
-        NULL,   /* check liveness method */
+        pdo_mimer_check_liveness,   /* check liveness method */
         NULL,   /* get driver method */
         pdo_mimer_request_shutdown,   /* request shutdown method */
         NULL,   /* in transaction method */
