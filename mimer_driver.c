@@ -44,7 +44,10 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh)
     if (!MIMER_SUCCEEDED(return_code)) {
         php_printf("Something went wrong -- " __FILE__ ":%d", __LINE__);
         pdo_throw_exception(return_code, "Something went wrong.", GENERAL_ERROR_SQLSTATE);
+        return false;
     }
+
+    return true;
 }
 /* }}} */
 
@@ -81,7 +84,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         NULL,   /* handle quoter method */
         NULL,   /* handle begin method */
         NULL,   /* handle commit method */
-        NULL,   /* handle rollback method */
+        mimer_handle_rollback,   /* handle rollback method */
         NULL,   /* handle set attribute method */
         NULL,   /* last_id not supported */
         NULL,   /* fetch error method */
