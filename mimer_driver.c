@@ -30,6 +30,21 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
 
     // TODO: convert Mimer error codes (int32_t) to SQLSTATE (char[6])
 
+
+    php_printf("Something went wrong -- %s:%d", file, line);
+    pdo_throw_exception(handle->last_error, "Something went wrong.", GENERAL_ERROR_SQLSTATE);
+}
+/* }}} */
+
+/* {{{ mimer_handle_rollback */
+static bool mimer_handle_rollback(pdo_dbh_t *dbh)
+{
+    MimerSession session = (MimerSession) dbh->driver_data;
+    int32_t return_code = MimerEndTransaction(session, MIMER_ROLLBACK);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        php_printf("Something went wrong -- " __FILE__ ":%d", __LINE__);
+        pdo_throw_exception(return_code, "Something went wrong.", GENERAL_ERROR_SQLSTATE);
+    }
 }
 /* }}} */
 
@@ -48,7 +63,8 @@ static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
     if (handle != NULL) {
         int32_t return_code = MimerEndSession(&handle->session);
         if (!MIMER_SUCCEEDED(return_code)) {
-            pdo_throw_exception(return_code, "Something went wrong.", GENERAL_ERROR_SQLSTATE);
+            handle->last_error = return_code;
+            _pdo_mimer_error(dbh, NULL, __FILE__, __LINE__ - 3);
         }
     }
 }
@@ -108,7 +124,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     num_data_src_opts = sizeof(*data_src_opts) / sizeof(void*);
 
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
-    handle->error = 0;
+    handle->last_error = 0;
     dbh->driver_data = handle;
 
     /**
@@ -125,15 +141,12 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     int32_t return_code = MimerBeginSession8(data_src_opts[dbname_opt].optval, dbh->username, dbh->password, &session);
 
-    /* TODO: add more error codes and error information */
-    if (return_code < 0 || session == NULL) {
-        php_printf("Mimer error code: %d\n", return_code);
-        pdo_throw_exception(return_code, "Something went wrong", GENERAL_ERROR_SQLSTATE);
+    if (!MIMER_SUCCEEDED(return_code) || session == NULL) {
+        handle->last_error = return_code;
+        _pdo_mimer_error(dbh, NULL, __FILE__, __LINE__ - 4);
     }
 
-    if (MIMER_SUCCEEDED(return_code)) {
-        php_printf("Connected to Mimer SQL (db=%s, user=%s, pwd=%s)\n", data_src_opts[dbname_opt].optval, dbh->username, dbh->password);
-    }
+    php_printf("Connected to Mimer SQL (db=%s, user=%s, pwd=%s)\n", data_src_opts[dbname_opt].optval, dbh->username, dbh->password);
 
 
     /* free up memory no longer needed */
@@ -147,6 +160,10 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     dbh->methods = &mimer_methods;
 }
 
+
+/**
+ * @brief Registers "mimer" as an available database in PDO's data source name
+ */
 const pdo_driver_t pdo_mimer_driver = {
         PDO_DRIVER_HEADER(mimer),
         pdo_mimer_handle_factory

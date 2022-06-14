@@ -28,12 +28,12 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
 
 typedef struct pdo_mimer_handle_t {
     MimerSession session;
-    int32_t error;
+    int32_t last_error;
 } pdo_mimer_handle;
 
 typedef struct pdo_mimer_stmt_t {
-    pdo_mimer_handle *H;
-    MimerStatement
+    pdo_mimer_handle *handle;
+    MimerStatement statement;
 } pdo_mimer_stmt;
 
 #endif /* PHP_PDO_MIMER_INT_H */
