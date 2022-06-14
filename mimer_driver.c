@@ -41,21 +41,17 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
 /* {{{ _pdo_mimer_handle_checker */
 bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool check_session)
 {
-    if (dbh == NULL) {
-        return false;
+    if (!check_handle) {
+        return dbh != NULL;
     }
 
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
-    if (handle == NULL) {
-        return false;
+
+    if (!check_session) {
+        return handle != NULL;
     }
 
-    MimerSession session = handle->session;
-    if (session == NULL) {
-        return false;
-    }
-
-    return true;
+    return handle->session != NULL;
 }
 /* }}} */
 
