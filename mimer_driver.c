@@ -58,11 +58,15 @@ bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool check_ses
 /* {{{ mimer_handle_closer */
 static void mimer_handle_closer(pdo_dbh_t *dbh)
 {
-    if (!pdo_mimer_check_session(dbh)) {
+    if (!pdo_mimer_check_handle(dbh)) {
         return;
     }
 
     pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
+    if (handle->session == NULL) {
+        goto cleanup;
+    }
+
     int32_t return_code = MimerEndSession(&handle->session);
 
     if (!MIMER_SUCCEEDED(return_code)) {
@@ -70,6 +74,7 @@ static void mimer_handle_closer(pdo_dbh_t *dbh)
         pdo_mimer_error(dbh);
     }
 
+    cleanup:
     /* FREE ANY PERSISTENT MEMORY USED BY PDO-MIMER */
     pefree(handle, dbh->is_persistent);
 
@@ -455,6 +460,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     MimerSession session = NULL;
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
+    dbh->driver_data = handle;
 
     handle->last_error = 0;
     handle->session = session;
