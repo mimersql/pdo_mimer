@@ -143,7 +143,7 @@ static bool mimer_handle_begin(pdo_dbh_t *dbh)
 
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
 
-    int32_t return_code = MimerBeginTransaction(handle->session, MIMER_TRANS_READWRITE);
+    int32_t return_code = MimerBeginTransaction(handle->session, handle->trans_option);
     if (!MIMER_SUCCEEDED(return_code)) {
         handle->last_error = return_code;
         pdo_mimer_error(dbh);
@@ -191,6 +191,56 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh)
     return true;
 }
 /* }}} */
+
+/* {{{ pdo_mimer_set_attribute */
+static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *value)
+{
+    if (!pdo_mimer_check_pdo_handle(dbh)) {
+        return false;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+
+    switch (attribute) {
+        case PDO_ATTR_AUTOCOMMIT: {
+            bool auto_commit;
+            if (!pdo_get_bool_param(&auto_commit, value)) {
+                return false;
+            }
+
+            dbh->auto_commit = auto_commit;
+            break;
+        }
+
+        case PDO_ATTR_CURSOR: {
+            long cursor_type;
+            if (!pdo_get_long_param(&cursor_type, value)) {
+                return false;
+            }
+
+            handle->cursor_type = cursor_type;
+            break;
+        }
+
+        /* custom driver attributes */
+        case PDO_MIMER_ATTR_TRANS_OPTION: {
+            long trans_option;
+            if (!pdo_get_long_param(&trans_option, value)) {
+                return false;
+            }
+
+            handle->trans_option = (int32_t) trans_option;
+            break;
+        }
+
+        /* TODO: add charset attribute support */
+
+        default:
+            return false;
+    }
+
+    return true;
+}
 
 /* {{{ pdo_mimer_fetch_err */
 static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info)
@@ -290,6 +340,15 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
             ZVAL_STRING(return_value, "UTF8");
             break;
 
+        case PDO_ATTR_CURSOR:
+            ZVAL_STRING(return_value, handle->cursor_type == MIMER_FORWARD_ONLY ? "Forward-only" : "Scrollable");
+            break;
+
+        /* custom driver attributes */
+        case PDO_MIMER_ATTR_TRANS_OPTION:
+            ZVAL_STRING(return_value, handle->trans_option == MIMER_TRANS_READWRITE ? "Read and write" : "Read-only");
+            break;
+
         /* TODO: find more attributes for Mimer */
 
         default:
@@ -353,7 +412,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         mimer_handle_begin,   /* handle begin method */
         mimer_handle_commit,   /* handle commit method */
         mimer_handle_rollback,   /* handle rollback method */
-        NULL,   /* handle set attribute method */
+        pdo_mimer_set_attribute,   /* handle set attribute method */
         NULL,   /* last_id not supported */
         pdo_mimer_fetch_err,   /* fetch error method */
         pdo_mimer_get_attribute,   /* handle get attribute method */
@@ -399,6 +458,8 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     handle->last_error = 0;
     handle->session = session;
+    handle->cursor_type = MIMER_FORWARD_ONLY;
+    handle->trans_option = MIMER_TRANS_DEFAULT;
 
     /**
      * @brief Parsing the DSN

@@ -32,18 +32,28 @@ extern bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool ch
 #define pdo_mimer_check_handle(x) _pdo_mimer_handle_checker(x, true, false)
 #define pdo_mimer_check_session(x) _pdo_mimer_handle_checker(x, true, true)
 
-
 extern const struct pdo_stmt_methods mimer_stmt_methods;
 
 typedef struct pdo_mimer_handle_t {
     MimerSession session;
     int32_t last_error;
+    int32_t trans_option;
+    enum pdo_cursor_type cursor_type;
 } pdo_mimer_handle;
 
 typedef struct pdo_mimer_stmt_t {
     pdo_mimer_handle *handle;
     MimerStatement statement;
     int32_t last_error;
+    int32_t trans_option;
+    enum pdo_cursor_type cursor_type;
 } pdo_mimer_stmt;
+
+/**
+ * @brief Define custom driver attributes here
+ */
+enum {
+    PDO_MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC
+};
 
 #endif /* PHP_PDO_MIMER_INT_H */
