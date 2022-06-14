@@ -146,6 +146,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
         _pdo_mimer_error(dbh, NULL, __FILE__, __LINE__ - 4);
     }
 
+    handle->session = session;
     php_printf("Connected to Mimer SQL (db=%s, user=%s, pwd=%s)\n", data_src_opts[dbname_opt].optval, dbh->username, dbh->password);
 
 
