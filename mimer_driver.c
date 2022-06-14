@@ -77,6 +77,25 @@ static void mimer_handle_closer(pdo_dbh_t *dbh)
 }
 /* }}} */
 
+/* {{{ mimer_handle_begin */
+static bool mimer_handle_begin(pdo_dbh_t *dbh)
+{
+    if (!pdo_mimer_check_session(dbh)) {
+        return false;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+
+    int32_t return_code = MimerBeginTransaction(handle->session, MIMER_TRANS_READWRITE);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return false;
+    }
+
+    return true;
+}
+
 /* {{{ mimer_handle_commit */
 static bool mimer_handle_commit(pdo_dbh_t *dbh)
 {
@@ -146,7 +165,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         NULL,   /* handle preparer method */
         NULL,   /* handle doer method */
         NULL,   /* handle quoter method */
-        NULL,   /* handle begin method */
+        mimer_handle_begin,   /* handle begin method */
         mimer_handle_commit,   /* handle commit method */
         mimer_handle_rollback,   /* handle rollback method */
         NULL,   /* handle set attribute method */
