@@ -123,6 +123,13 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
         result_count++;
     }
 
+    return_code = MimerEndStatement(&statement);
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        return -1;
+    }
+
     return result_count;
 }
 /* }}} */
