@@ -205,10 +205,91 @@ static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info)
     if (last_error == MIMER_SUCCESS) {
         return;
     }
+
     zend_string *err_msg = strpprintf(0, "Error -- " __FILE__ ":%d", __LINE__);
 
     add_next_index_long(info, last_error);
     add_next_index_string(info, ZSTR_VAL(err_msg));
+}
+/* }}} */
+
+/* {{{ pdo_mimer_get_attribute */
+static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *return_value)
+{
+    /**
+     * @brief Get driver attributes (settings)
+     * @return -1 for errors while retrieving a valid attribute
+     * @return 0 for attempting to retrieve an attribute which is not supported by the driver
+     * @return any other value for success, *return_value must be set to the attribute value
+     */
+
+    if (!pdo_mimer_check_pdo_handle(dbh)) {
+        return -1;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+
+    switch (attribute) {
+        case PDO_ATTR_AUTOCOMMIT:
+            ZVAL_BOOL(return_value, dbh->auto_commit);
+            break;
+
+        case PDO_ATTR_CLIENT_VERSION:
+        case PDO_ATTR_SERVER_VERSION:
+        case PDO_ATTR_SERVER_INFO:
+            ZVAL_STRING(return_value, MimerAPIVersion());
+            break;
+
+        case PDO_ATTR_DRIVER_NAME:
+            ZVAL_STRING(return_value, "mimer");
+            break;
+
+        case PDO_ATTR_CONNECTION_STATUS:
+            /* TODO: find out how to do this */
+
+            /* MySQLs status function https://dev.mysql.com/doc/refman/8.0/en/show-status.html */
+            /* +--------------------------+------------+
+               | Variable_name            | Value      |
+               +--------------------------+------------+
+               | Aborted_clients          | 0          |
+               | Aborted_connects         | 0          |
+               | Bytes_received           | 155372598  |
+               | Bytes_sent               | 1176560426 |
+               | Connections              | 30023      |
+               | Created_tmp_disk_tables  | 0          |
+               | Created_tmp_tables       | 8340       |
+               | Created_tmp_files        | 60         |
+               ...
+               | Open_tables              | 1          |
+               | Open_files               | 2          |
+               | Open_streams             | 0          |
+               | Opened_tables            | 44600      |
+               | Questions                | 2026873    |
+               ...
+               | Table_locks_immediate    | 1920382    |
+               | Table_locks_waited       | 0          |
+               | Threads_cached           | 0          |
+               | Threads_created          | 30022      |
+               | Threads_connected        | 1          |
+               | Threads_running          | 1          |
+               | Uptime                   | 80380      |
+               +--------------------------+------------+ */
+
+            ZVAL_STRING(return_value, handle->session == NULL ? "Disconnected" : "Connected");
+            break;
+
+        case PDO_ATTR_DEFAULT_STR_PARAM:
+            /* TODO: charset */
+            ZVAL_STRING(return_value, "UTF8");
+            break;
+
+        /* TODO: find more attributes for Mimer */
+
+        default:
+            return 0;
+    }
+
+    return 1;
 }
 /* }}} */
 
@@ -268,7 +349,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         NULL,   /* handle set attribute method */
         NULL,   /* last_id not supported */
         pdo_mimer_fetch_err,   /* fetch error method */
-        NULL,   /* handle get attribute method */
+        pdo_mimer_get_attribute,   /* handle get attribute method */
         pdo_mimer_check_liveness,   /* check liveness method */
         NULL,   /* get driver method */
         pdo_mimer_request_shutdown,   /* request shutdown method */
