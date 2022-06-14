@@ -54,6 +54,8 @@ bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool check_ses
     if (session == NULL) {
         return false;
     }
+
+    return true;
 }
 /* }}} */
 
