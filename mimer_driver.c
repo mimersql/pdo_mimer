@@ -135,6 +135,34 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh)
 }
 /* }}} */
 
+/* {{{ pdo_mimer_fetch_err */
+static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info)
+{
+    if (!pdo_mimer_check_session(dbh)) {
+        return;
+    }
+
+    int32_t last_error;
+
+    if (stmt) {
+        pdo_mimer_stmt *handle = (pdo_mimer_stmt *)stmt->driver_data;
+        last_error = handle->last_error;
+    } else {
+        pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+        last_error = handle->last_error;
+    }
+
+    if (last_error == MIMER_SUCCESS) {
+        return;
+    }
+
+    char *err_msg = ecalloc(128, sizeof(char));
+    sprintf(err_msg, "Error -- " __FILE__ ":%d", __LINE__);
+    add_next_index_long(info, last_error);
+    add_next_index_string(info, err_msg);
+}
+/* }}} */
+
 /* {{{ pdo_mimer_request_shutdown */
 static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
 {
@@ -170,7 +198,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         mimer_handle_rollback,   /* handle rollback method */
         NULL,   /* handle set attribute method */
         NULL,   /* last_id not supported */
-        NULL,   /* fetch error method */
+        pdo_mimer_fetch_err,   /* fetch error method */
         NULL,   /* handle get attribute method */
         NULL,   /* check liveness method */
         NULL,   /* get driver method */
