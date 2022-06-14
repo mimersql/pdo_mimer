@@ -494,6 +494,8 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     /* pass the methods the Mimer PDO driver uses to PDO */
     dbh->methods = &mimer_methods;
+
+    return return_code;
 }
 
 
