@@ -15,7 +15,7 @@
 */
 
 #ifndef PHP_PDO_MIMER_INT_H
-#define PHP_PDO_MIMER_INT_H
+# define PHP_PDO_MIMER_INT_H
 
 #include <mimerapi.h>
 #include <mimerrors.h>
