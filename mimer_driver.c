@@ -107,9 +107,9 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     typedef enum { dbname_opt } DataSourceOption;
 
     int num_data_src_opts;
-    struct pdo_data_src_parser data_src_opts[] = {
+    data_src_opt data_src_opts[] = {
             /* if the user does not give database name, NULL will trigger default database connection */
-            {"dbname", NULL, 0 },
+            {"dbname", NULL, 0 }
 
             /**
              * TODO: possible future functionality
@@ -121,7 +121,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
              */
     };
 
-    num_data_src_opts = sizeof(*data_src_opts) / sizeof(void*);
+    num_data_src_opts = sizeof(data_src_opts) / sizeof(data_src_opt);
 
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
     handle->last_error = 0;
