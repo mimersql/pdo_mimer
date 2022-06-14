@@ -77,6 +77,48 @@ static void mimer_handle_closer(pdo_dbh_t *dbh)
 }
 /* }}} */
 
+/* {{{ mimer_handle_doer */
+static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
+{
+    if (!pdo_mimer_check_session(dbh)) {
+        return 0L;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+    MimerStatement statement = NULL;
+
+    int32_t return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement);  /* TODO: add compatability for other charsets */
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+
+        if (return_code == MIMER_NO_DATA) {
+            return 0;
+        }
+
+        return -1;
+    }
+
+    zend_long result_count = 0L;
+    while (1) {
+        return_code = MimerFetch(statement);
+
+        if (!MIMER_SUCCEEDED(return_code)) {
+            handle->last_error = return_code;
+            return -1;
+        }
+
+        if (return_code == MIMER_NO_DATA) {
+            break;
+        }
+
+        result_count++;
+    }
+
+    return result_count;
+}
+/* }}} */
+
 /* {{{ mimer_handle_begin */
 static bool mimer_handle_begin(pdo_dbh_t *dbh)
 {
@@ -211,7 +253,7 @@ static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
 static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         mimer_handle_closer,   /* handle closer method */
         NULL,   /* handle preparer method */
-        NULL,   /* handle doer method */
+        mimer_handle_doer,   /* handle doer method */
         NULL,   /* handle quoter method */
         mimer_handle_begin,   /* handle begin method */
         mimer_handle_commit,   /* handle commit method */
