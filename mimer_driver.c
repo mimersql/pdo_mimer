@@ -36,6 +36,27 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
 }
 /* }}} */
 
+/* {{{ mimer_handle_closer */
+static void mimer_handle_closer(pdo_dbh_t *dbh) {
+    pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
+
+    if (handle != NULL) {
+        if (handle->session != NULL) {
+            int32_t return_code = MimerEndSession(&handle->session);
+            if (!MIMER_SUCCEEDED(return_code)) {
+                handle->last_error = return_code;
+                _pdo_mimer_error(dbh, NULL, __FILE__, __LINE__ - 3);
+            }
+
+            /* FREE ANY PERSISTENT MEMORY USED BY PDO-MIMER */
+            pefree(handle, dbh->is_persistent);
+
+            dbh->driver_data = NULL;
+        }
+    }
+}
+/* }}} */
+
 /* {{{ mimer_handle_rollback */
 static bool mimer_handle_rollback(pdo_dbh_t *dbh)
 {
@@ -55,10 +76,7 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh)
 static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
 {
     /**
-     * @note It seems like PDO does some cleaning up itself.
-     *
-     * Looking at the other provided drivers, none of them do any
-     * nullifying of any pointers or freeing of any memory in this function.
+     * @note Memory freeing and pointer nullifying is done in mimer_handle_closer()
      */
 
     pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
@@ -78,7 +96,7 @@ static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
  * @brief Declare the methods Mimer uses and give them to the PDO driver
  */
 static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
-        NULL,   /* handle closer method */
+        mimer_handle_closer,   /* handle closer method */
         NULL,   /* handle preparer method */
         NULL,   /* handle doer method */
         NULL,   /* handle quoter method */
