@@ -36,6 +36,25 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
 }
 /* }}} */
 
+/* {{{ _pdo_mimer_handle_checker */
+bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool check_session)
+{
+    if (dbh == NULL) {
+        return false;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+    if (handle == NULL) {
+        return false;
+    }
+
+    MimerSession session = handle->session;
+    if (session == NULL) {
+        return false;
+    }
+}
+/* }}} */
+
 /* {{{ mimer_handle_closer */
 static void mimer_handle_closer(pdo_dbh_t *dbh) {
     pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;

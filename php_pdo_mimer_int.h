@@ -24,6 +24,15 @@
 
 extern const pdo_driver_t pdo_mimer_driver;
 
+extern int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line);
+#define pdo_mimer_error(x) _pdo_mimer_error(x, NULL, __FILE__, __LINE__)
+
+extern bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool check_session);
+#define pdo_mimer_check_pdo_handle(x) _pdo_mimer_handle_checker(x, false, false)
+#define pdo_mimer_check_handle(x) _pdo_mimer_handle_checker(x, true, false)
+#define pdo_mimer_check_session(x) _pdo_mimer_handle_checker(x, true, true)
+
+
 extern const struct pdo_stmt_methods mimer_stmt_methods;
 
 typedef struct pdo_mimer_handle_t {
