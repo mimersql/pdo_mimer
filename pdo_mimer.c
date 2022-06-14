@@ -33,6 +33,9 @@ PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */ // TODO: check what more needs to be don
         return FAILURE;
     }
 
+    /* register custom attributes here */
+    REGISTER_PDO_CLASS_CONST_LONG("PDO_MIMER_ATTR_TRANS_OPTION", (long) PDO_MIMER_ATTR_TRANS_OPTION);
+
     return SUCCESS;
 }
 /* }}} */
