@@ -494,14 +494,12 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     }
 
     cleanup:
-
-    /* pass Mimer session handle to PDO handle */
-    dbh->driver_data = handle;
-
-    /* pass the methods the Mimer PDO driver uses to PDO */
     dbh->methods = &mimer_methods;
+    if (!MIMER_SUCCEEDED(return_code)) {
+        mimer_handle_closer(dbh);
+    }
 
-    return return_code;
+    return MIMER_SUCCEEDED(return_code);
 }
 
 
