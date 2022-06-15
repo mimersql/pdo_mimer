@@ -113,6 +113,15 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
             break;
     }
 
+    int32_t return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(stmt_handle->query), MIMER_FORWARD_ONLY, &stmt_handle->statement);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        stmt_handle->statement = NULL;
+        pdo_mimer_error(dbh);
+
+        return false;
+    }
+
     return true;
 }
 /* }}} */
