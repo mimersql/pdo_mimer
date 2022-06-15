@@ -43,6 +43,7 @@ typedef struct pdo_mimer_handle_t {
 
 typedef struct pdo_mimer_stmt_t {
     pdo_mimer_handle *handle;
+    MimerStatement statement;
     zend_string *query;
     int32_t last_error;
 } pdo_mimer_stmt;
