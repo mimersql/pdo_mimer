@@ -26,9 +26,9 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
     pdo_error_type *pdo_err;
 
-    // TODO: add errors for statements
+    /* TODO: add errors for statements */
 
-    // TODO: convert Mimer error codes (int32_t) to SQLSTATE (char[6])
+    /* TODO: convert Mimer error codes (int32_t) to SQLSTATE (char[6]) */
 
     zend_string *err_msg = strpprintf(0, "Something went wrong -- %s:%d", file, line);
     php_printf("%s", ZSTR_VAL(err_msg));
@@ -438,7 +438,9 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{ */
 {
     /* This enum exists to add code readability */
-//    typedef enum { protocol_opt, dbname_opt, host_opt, port_opt, ident_opt, /* user_opt, */ password_opt } opt_val; // TODO: possible future functionality
+    /* TODO: possible future functionality
+     * typedef enum { protocol_opt, dbname_opt, host_opt, port_opt, [ident_opt | user_opt], password_opt } opt_val;
+     */
     typedef enum { dbname_opt } DataSourceOption;
 
     int num_data_src_opts;
@@ -488,7 +490,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     /* free up memory no longer needed */
     for (int i = 0; i < num_data_src_opts; i++) {
-        if (data_src_opts[i].freeme) {  // check if each option is persistent
+        if (data_src_opts[i].freeme) {  /* check if each option is persistent */
             efree(data_src_opts[i].optval);
         }
     }

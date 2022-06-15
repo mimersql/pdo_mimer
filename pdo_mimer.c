@@ -24,10 +24,10 @@
 #include "pdo/php_pdo_driver.h"
 #include "php_pdo_mimer.h"
 #include "php_pdo_mimer_int.h"
-//#include "pdo_mimer_arginfo.h"
+/* #include "pdo_mimer_arginfo.h" */
 
-
-PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */ // TODO: check what more needs to be done here
+/* TODO: check what more needs to be done here */
+PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */
 {
     if (FAILURE == php_pdo_register_driver(&pdo_mimer_driver)) {
         return FAILURE;
@@ -40,7 +40,8 @@ PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */ // TODO: check what more needs to be don
 }
 /* }}} */
 
-PHP_MSHUTDOWN_FUNCTION(pdo_mimer) /* {{{ */ // TODO: check what more needs to be done here
+/* TODO: check what more needs to be done here */
+PHP_MSHUTDOWN_FUNCTION(pdo_mimer) /* {{{ */
 {
     php_pdo_unregister_driver(&pdo_mimer_driver);
 
@@ -58,16 +59,17 @@ PHP_MINFO_FUNCTION(pdo_mimer)
 }
 /* }}} */
 
-
-#ifdef COMPILE_DL_PDO_MIMER // TODO: check what this does and if is needed
+/* TODO: check what this does and if is needed */
+#ifdef COMPILE_DL_PDO_MIMER
 # ifdef ZTS
 ZEND_TSRMLS_CACHE_DEFINE()
 # endif
 ZEND_GET_MODULE(pdo_mimer)
 #endif
 
+/* TODO: check what this does and if is needed */
 /* For compatibility with older PHP versions */
-#ifndef ZEND_PARSE_PARAMETERS_NONE // TODO: check what this does and if is needed
+#ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() \
 	ZEND_PARSE_PARAMETERS_START(0, 0) \
 	ZEND_PARSE_PARAMETERS_END()
