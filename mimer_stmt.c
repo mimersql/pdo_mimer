@@ -36,7 +36,7 @@ static int mimer_stmt_fetch(pdo_stmt_t *stmt,
 /* }}} */
 
 
-const struct pdo_stmt_methods firebird_stmt_methods = { /* {{{ */
+const struct pdo_stmt_methods mimer_stmt_methods = { /* {{{ */
         NULL,   /* statement destructor method */
         NULL,   /* statement executor method */
         NULL,   /* statement fetcher method */
