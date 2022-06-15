@@ -460,12 +460,10 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     num_data_src_opts = sizeof(data_src_opts) / sizeof(data_src_opt);
 
-    MimerSession session = NULL;
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
     dbh->driver_data = handle;
 
     handle->last_error = 0;
-    handle->session = session;
     handle->cursor_type = MIMER_FORWARD_ONLY;
     handle->trans_option = MIMER_TRANS_DEFAULT;
 
@@ -478,9 +476,9 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts, num_data_src_opts);
 
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
-    int32_t return_code = MimerBeginSession8(data_src_opts[dbname_opt].optval, dbh->username, dbh->password, &session);
+    int32_t return_code = MimerBeginSession8(data_src_opts[dbname_opt].optval, dbh->username, dbh->password, &handle->session);
 
-    if (!MIMER_SUCCEEDED(return_code) || session == NULL) {
+    if (!MIMER_SUCCEEDED(return_code) || handle->session == NULL) {
         handle->last_error = return_code;
         pdo_mimer_error(dbh);
         goto cleanup;
