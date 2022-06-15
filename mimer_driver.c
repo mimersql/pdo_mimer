@@ -440,6 +440,19 @@ static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
 }
 /* }}} */
 
+/* {{{ pdo_mimer_in_transaction */
+static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh)
+{
+    if (!pdo_mimer_check_session(dbh)) {
+        return false;
+    }
+
+    pdo_mimer_handle *handle = dbh->driver_data;
+
+    /* TODO: find a better way? This can't be a good way to do this... */
+    return MimerBeginTransaction(handle->session, MIMER_TRANS_DEFAULT) == MIMER_TRANS_STARTED;
+}
+
 
 /**
  * @brief Declare the methods Mimer uses and give them to the PDO driver
@@ -459,7 +472,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         pdo_mimer_check_liveness,   /* check liveness method */
         NULL,   /* get driver method */
         pdo_mimer_request_shutdown,   /* request shutdown method */
-        NULL,   /* in transaction method */
+        pdo_mimer_in_transaction,   /* in transaction method */
         NULL    /* get gc method */
 };
 

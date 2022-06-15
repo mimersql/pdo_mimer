@@ -45,9 +45,12 @@ typedef struct pdo_mimer_stmt_t {
     pdo_mimer_handle *handle;
     zend_string *query;
     int32_t last_error;
-    int32_t trans_option;
-    enum pdo_cursor_type cursor_type;
 } pdo_mimer_stmt;
+
+/* TODO: maybe should be moved to mimerapi somewhere? */
+enum {
+    MIMER_TRANS_STARTED = -14011
+};
 
 /**
  * @brief Define custom driver attributes here
