@@ -82,6 +82,41 @@ static void mimer_handle_closer(pdo_dbh_t *dbh)
 }
 /* }}} */
 
+/* {{{ */
+static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *stmt, zval *driver_options)
+{
+    if (!pdo_mimer_check_session(dbh)) {
+        return false;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+    pdo_mimer_stmt *stmt_handle = ecalloc(1, sizeof(pdo_mimer_stmt));
+    zend_string *new_sql = NULL;
+
+    stmt_handle->handle = handle;
+    stmt->driver_data = stmt_handle;
+    stmt->methods = &mimer_stmt_methods;
+    stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL;
+
+    switch (pdo_parse_params(stmt, sql, &new_sql)) {
+        case -1: /* failed to parse */
+            strcpy(dbh->error_code, stmt->error_code);
+            pdo_mimer_error(dbh);
+            return false;
+
+        case 1: /* query was rewritten */
+            stmt_handle->query = new_sql;
+            break;
+
+        default:
+            stmt_handle->query = sql;
+            break;
+    }
+
+    return true;
+}
+/* }}} */
+
 /* {{{ mimer_handle_doer */
 static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
 {
@@ -411,7 +446,7 @@ static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
  */
 static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         mimer_handle_closer,   /* handle closer method */
-        NULL,   /* handle preparer method */
+        mimer_handle_preparer,   /* handle preparer method */
         mimer_handle_doer,   /* handle doer method */
         NULL,   /* handle quoter method */
         mimer_handle_begin,   /* handle begin method */
