@@ -138,48 +138,38 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
      */
 
     if (!pdo_mimer_check_session(dbh)) {
-        return 0L;
+        return -1;
     }
 
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
     MimerStatement statement = NULL;
+    int32_t return_code = MIMER_SUCCESS;
+    zend_long num_affected_rows = 0;
 
-    int32_t return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement);  /* TODO: add compatability for other charsets */
-
+    return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement);
     if (!MIMER_SUCCEEDED(return_code)) {
         handle->last_error = return_code;
-
-        if (return_code == MIMER_NO_DATA) {
-            return 0;
-        }
-
+        pdo_mimer_error(dbh);
         return -1;
     }
 
-    zend_long result_count = 0L;
-    while (1) {
-        return_code = MimerFetch(statement);
-
-        if (!MIMER_SUCCEEDED(return_code)) {
-            handle->last_error = return_code;
-            return -1;
-        }
-
-        if (return_code == MIMER_NO_DATA) {
-            break;
-        }
-
-        result_count++;
+    return_code = MimerExecute(statement);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return -1;
     }
+
+    num_affected_rows = return_code; /* MimerExecute outputs number of affected rows */
 
     return_code = MimerEndStatement(&statement);
-
     if (!MIMER_SUCCEEDED(return_code)) {
         handle->last_error = return_code;
+        pdo_mimer_error(dbh);
         return -1;
     }
 
-    return result_count;
+    return num_affected_rows;
 }
 /* }}} */
 
