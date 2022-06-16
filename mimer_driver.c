@@ -113,7 +113,13 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
             break;
     }
 
-    int32_t return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(stmt_handle->query), MIMER_FORWARD_ONLY, &stmt_handle->statement);
+    /* if no option given, cursor inits with default PDO_CURSOR_FWDONLY */
+    enum pdo_cursor_type cursor =
+            pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY);
+
+    int32_t mimer_cursor = cursor == PDO_CURSOR_FWDONLY ? MIMER_FORWARD_ONLY : MIMER_SCROLLABLE;
+
+    int32_t return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(stmt_handle->query), mimer_cursor, &stmt_handle->statement);
     if (!MIMER_SUCCEEDED(return_code)) {
         handle->last_error = return_code;
         stmt_handle->statement = NULL;
@@ -379,10 +385,6 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
             ZVAL_STRING(return_value, "UTF8");
             break;
 
-        case PDO_ATTR_CURSOR:
-            ZVAL_STRING(return_value, handle->cursor_type == MIMER_FORWARD_ONLY ? "Forward-only" : "Scrollable");
-            break;
-
         /* custom driver attributes */
         case PDO_MIMER_ATTR_TRANS_OPTION:
             ZVAL_STRING(return_value, handle->trans_option == MIMER_TRANS_READWRITE ? "Read and write" : "Read-only");
@@ -535,7 +537,6 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     dbh->driver_data = handle;
 
     handle->last_error = 0;
-    handle->cursor_type = MIMER_FORWARD_ONLY;
     handle->trans_option = MIMER_TRANS_DEFAULT;
 
     /**
