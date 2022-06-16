@@ -448,7 +448,7 @@ static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh)
         return false;
     }
 
-    pdo_mimer_db_handle *handle = dbh->driver_data;
+    pdo_mimer_handle *handle = dbh->driver_data;
 
 
     /**
@@ -461,14 +461,6 @@ static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh)
 
     int32_t return_code = MimerGetStatistics(handle->session, &transactions_started, 1);
     if (!MIMER_SUCCEEDED(return_code) || transactions_started < 0) { /* should never be < 0 */
-        handle->last_error = return_code;
-        pdo_mimer_error(dbh);
-        return false;
-    }
-
-    /* A transaction was started unnecessarily, now end it */
-    return_code = MimerEndTransaction(handle->session, MIMER_ROLLBACK);
-    if (!MIMER_SUCCEEDED(return_code)) {
         handle->last_error = return_code;
         pdo_mimer_error(dbh);
         return false;
@@ -534,8 +526,8 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
     num_data_src_opts = sizeof(data_src_opts) / sizeof(data_src_opt);
 
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
-    dbh->driver_data = handle;
 
+    dbh->driver_data = handle;
     handle->last_error = 0;
     handle->trans_option = MIMER_TRANS_DEFAULT;
 
@@ -567,6 +559,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     cleanup:
     dbh->methods = &mimer_methods;
+
     if (!MIMER_SUCCEEDED(return_code)) {
         mimer_handle_closer(dbh);
     }
