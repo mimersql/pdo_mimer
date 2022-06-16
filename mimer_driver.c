@@ -450,8 +450,28 @@ static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh)
     pdo_mimer_handle *handle = dbh->driver_data;
 
     /* TODO: find a better way? This can't be a good way to do this... */
-    return MimerBeginTransaction(handle->session, MIMER_TRANS_DEFAULT) == MIMER_TRANS_STARTED;
+    int return_code = MimerBeginTransaction(handle->session, MIMER_TRANS_READONLY);
+    if (return_code == MIMER_TRANS_STARTED) {
+        return true;
+    }
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return false;
+    }
+
+    /* A transaction was started unnecessarily, now end it */
+    return_code = MimerEndTransaction(handle->session, MIMER_ROLLBACK);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return false;
+    }
+
+    return true;
 }
+/* }}} */
 
 
 /**
