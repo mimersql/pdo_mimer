@@ -456,11 +456,35 @@ static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh)
         return false;
     }
 
-    pdo_mimer_handle *handle = dbh->driver_data;
+    pdo_mimer_db_handle *handle = dbh->driver_data;
 
-    /* TODO: find a better way? This can't be a good way to do this... */
-    return MimerBeginTransaction(handle->session, MIMER_TRANS_DEFAULT) == MIMER_TRANS_STARTED;
+
+    /**
+     * @brief MimerGetStatistics
+     * @link https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/mimercapi/mimercapi.htm?rhtocid=_2_5_8#XREF_15636_MimerGetStatistics
+     */
+
+    /* set the variable with the desired statistic, which is later updated with the statistic's value */
+    int32_t transactions_started = BSI_TRANSACTIONS;
+
+    int32_t return_code = MimerGetStatistics(handle->session, &transactions_started, 1);
+    if (!MIMER_SUCCEEDED(return_code) || transactions_started < 0) { /* should never be < 0 */
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return false;
+    }
+
+    /* A transaction was started unnecessarily, now end it */
+    return_code = MimerEndTransaction(handle->session, MIMER_ROLLBACK);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return false;
+    }
+
+    return transactions_started != 0;
 }
+/* }}} */
 
 
 /**
