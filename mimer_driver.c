@@ -337,8 +337,6 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
             break;
 
         case PDO_ATTR_CLIENT_VERSION:
-        case PDO_ATTR_SERVER_VERSION:
-        case PDO_ATTR_SERVER_INFO:
             ZVAL_STRING(return_value, MimerAPIVersion());
             break;
 
