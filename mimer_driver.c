@@ -218,7 +218,11 @@ static bool mimer_handle_transaction(pdo_dbh_t *dbh, int32_t COMMIT_ROLLBACK) {
     return true;
 }
 
-/* {{{ mimer_handle_commit */
+/**
+ * @brief This function will be called by PDO to commit a database transaction.
+ * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @return true on success, false if failure
+ */
 static bool mimer_handle_commit(pdo_dbh_t *dbh)
 {
     return mimer_handle_transaction(dbh, MIMER_COMMIT);
