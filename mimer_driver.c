@@ -150,7 +150,7 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
     MimerStatement statement = NULL;
     int32_t return_code = MIMER_SUCCESS;
-    zend_long num_affected_rows = 0;
+    zend_long num_affected_rows;
 
     return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement);
     if (!MIMER_SUCCEEDED(return_code)) {

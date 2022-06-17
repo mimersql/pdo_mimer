@@ -38,7 +38,6 @@ typedef struct pdo_mimer_handle_t {
     MimerSession session;
     int32_t last_error;
     int32_t trans_option;
-    enum pdo_cursor_type cursor_type;
 } pdo_mimer_handle;
 
 typedef struct pdo_mimer_stmt_t {
