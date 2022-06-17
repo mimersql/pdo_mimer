@@ -386,6 +386,7 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
                 handle->last_error = return_code;
                 pdo_mimer_error(dbh);
                 return -1;
+                break;
             }
 
             ZVAL_STRING(return_value, "Connected");
