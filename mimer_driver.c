@@ -221,20 +221,7 @@ static bool mimer_handle_transaction(pdo_dbh_t *dbh, int32_t COMMIT_ROLLBACK) {
 /* {{{ mimer_handle_commit */
 static bool mimer_handle_commit(pdo_dbh_t *dbh)
 {
-    if (!pdo_mimer_check_session(dbh)) {
-        return false;
-    }
-
-    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
-    int32_t return_code = MimerEndTransaction(handle->session, MIMER_COMMIT);
-
-    if (!MIMER_SUCCEEDED(return_code)) {
-        handle->last_error = return_code;
-        pdo_mimer_error(dbh);
-        return false;
-    }
-
-    return true;
+    return mimer_handle_transaction(dbh, MIMER_COMMIT);
 }
 
 /* {{{ mimer_handle_rollback */
