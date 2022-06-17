@@ -228,12 +228,15 @@ static bool mimer_handle_commit(pdo_dbh_t *dbh)
     return mimer_handle_transaction(dbh, MIMER_COMMIT);
 }
 
-/* {{{ mimer_handle_rollback */
+/**
+ * @brief This function will be called by PDO to rollback a database transaction.
+ * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @return true on success, false if failure
+ */
 static bool mimer_handle_rollback(pdo_dbh_t *dbh)
 {
     return mimer_handle_transaction(dbh, MIMER_ROLLBACK);
 }
-/* }}} */
 
 /* {{{ pdo_mimer_set_attribute */
 static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *value)
