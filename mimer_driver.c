@@ -375,8 +375,22 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
                | Uptime                   | 80380      |
                +--------------------------+------------+ */
 
-            ZVAL_STRING(return_value, handle->session == NULL ? "Disconnected" : "Connected");
+        {
+            if (handle->session == NULL) {
+                ZVAL_STRING(return_value, "Disconnected");
+                break;
+            }
+
+            int32_t return_code = MimerPing(handle->session);
+            if (!MIMER_SUCCEEDED(return_code)) {
+                handle->last_error = return_code;
+                pdo_mimer_error(dbh);
+                return -1;
+            }
+
+            ZVAL_STRING(return_value, "Connected");
             break;
+        }
 
         case PDO_ATTR_DEFAULT_STR_PARAM:
             /* TODO: charset */
