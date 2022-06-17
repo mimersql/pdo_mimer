@@ -48,11 +48,6 @@ typedef struct pdo_mimer_stmt_t {
     int32_t last_error;
 } pdo_mimer_stmt;
 
-/* TODO: maybe should be moved to mimerapi somewhere? */
-enum {
-    MIMER_TRANS_STARTED = -14011
-};
-
 /**
  * @brief Define custom driver attributes here
  */

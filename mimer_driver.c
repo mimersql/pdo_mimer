@@ -441,35 +441,6 @@ static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
 }
 /* }}} */
 
-/* {{{ pdo_mimer_in_transaction */
-static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh)
-{
-    if (!pdo_mimer_check_session(dbh)) {
-        return false;
-    }
-
-    pdo_mimer_handle *handle = dbh->driver_data;
-
-
-    /**
-     * @brief MimerGetStatistics
-     * @link https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/mimercapi/mimercapi.htm?rhtocid=_2_5_8#XREF_15636_MimerGetStatistics
-     */
-
-    /* set the variable with the desired statistic, which is later updated with the statistic's value */
-    int32_t transactions_started = BSI_TRANSACTIONS;
-
-    int32_t return_code = MimerGetStatistics(handle->session, &transactions_started, 1);
-    if (!MIMER_SUCCEEDED(return_code) || transactions_started < 0) { /* should never be < 0 */
-        handle->last_error = return_code;
-        pdo_mimer_error(dbh);
-        return false;
-    }
-
-    return transactions_started != 0;
-}
-/* }}} */
-
 
 /**
  * @brief Declare the methods Mimer uses and give them to the PDO driver
@@ -489,7 +460,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         pdo_mimer_check_liveness,   /* check liveness method */
         NULL,   /* get driver method */
         pdo_mimer_request_shutdown,   /* request shutdown method */
-        pdo_mimer_in_transaction,   /* in transaction method */
+        NULL,    /* in transaction method */
         NULL    /* get gc method */
 };
 
