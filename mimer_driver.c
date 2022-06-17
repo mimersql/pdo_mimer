@@ -132,17 +132,14 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
 }
 /* }}} */
 
-/* {{{ mimer_handle_doer */
+/**
+ * @brief This function will be called by PDO to execute a raw SQL statement.
+ * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @param sql A zend_string containing the SQL statement to be prepared.
+ * @return This function returns the number of rows affected or -1 upon failure.
+ */
 static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
 {
-    /**
-     * @brief Execute a statement that does not return a result set.
-     * @return (zend_long) -1 on failure, otherwise the number of affected rows.
-     *
-     * @TODO Check if the Mimer API has a way to get number of affected rows
-     * when calling MimerExecuteStatement[C|8]
-     */
-
     if (!pdo_mimer_check_session(dbh)) {
         return -1;
     }
@@ -166,7 +163,8 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
         return -1;
     }
 
-    num_affected_rows = return_code; /* MimerExecute outputs number of affected rows */
+    /* MimerExecute() outputs number of affected rows upon success. */
+    num_affected_rows = return_code;
 
     return_code = MimerEndStatement(&statement);
     if (!MIMER_SUCCEEDED(return_code)) {
@@ -177,7 +175,6 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql)
 
     return num_affected_rows;
 }
-/* }}} */
 
 /* {{{ mimer_handle_begin */
 static bool mimer_handle_begin(pdo_dbh_t *dbh)
