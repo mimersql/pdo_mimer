@@ -257,16 +257,6 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
             break;
         }
 
-        case PDO_ATTR_CURSOR: {
-            long cursor_type;
-            if (!pdo_get_long_param(&cursor_type, value)) {
-                return false;
-            }
-
-            handle->cursor_type = cursor_type;
-            break;
-        }
-
         /* custom driver attributes */
         case PDO_MIMER_ATTR_TRANS_OPTION: {
             long trans_option;
