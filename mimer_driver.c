@@ -195,6 +195,29 @@ static bool mimer_handle_begin(pdo_dbh_t *dbh)
     return true;
 }
 
+/**
+ * @brief Internal function to handle transactions based on commit or rollback
+ * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @param COMMIT_ROLLBACK @code MIMER_COMMIT or MIMER_ROLLBACK @endcode
+ * @return true on success, false if failure
+ */
+static bool mimer_handle_transaction(pdo_dbh_t *dbh, int32_t COMMIT_ROLLBACK) {
+    if (!pdo_mimer_check_session(dbh)) {
+        return false;
+    }
+
+    pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
+    int32_t return_code = MimerEndTransaction(handle->session, COMMIT_ROLLBACK);
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        handle->last_error = return_code;
+        pdo_mimer_error(dbh);
+        return false;
+    }
+
+    return true;
+}
+
 /* {{{ mimer_handle_commit */
 static bool mimer_handle_commit(pdo_dbh_t *dbh)
 {
