@@ -77,8 +77,8 @@ static void mimer_handle_closer(pdo_dbh_t *dbh)
     }
 
     cleanup:
-    /* FREE ANY PERSISTENT MEMORY USED BY PDO-MIMER */
-    pefree(handle, dbh->is_persistent);
+    /* Free any allocated memory */
+    efree(handle);
 
     dbh->driver_data = NULL;
 }
@@ -422,27 +422,6 @@ static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh)
 }
 /* }}} */
 
-/* {{{ pdo_mimer_request_shutdown */
-static void pdo_mimer_request_shutdown(pdo_dbh_t *dbh)
-{
-    /**
-     * @note Memory freeing and pointer nullifying is done in mimer_handle_closer()
-     */
-
-    if (!pdo_mimer_check_session(dbh)) {
-        return;
-    }
-
-    pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
-
-    int32_t return_code = MimerEndSession(&handle->session);
-    if (!MIMER_SUCCEEDED(return_code)) {
-        handle->last_error = return_code;
-        pdo_mimer_error(dbh);
-    }
-}
-/* }}} */
-
 
 /**
  * @brief Declare the methods Mimer uses and give them to the PDO driver
@@ -461,7 +440,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         pdo_mimer_get_attribute,   /* handle get attribute method */
         pdo_mimer_check_liveness,   /* check liveness method */
         NULL,   /* get driver method */
-        pdo_mimer_request_shutdown,   /* request shutdown method */
+        NULL,   /* persistent connection shutdown method */
         NULL,    /* in transaction method */
         NULL    /* get gc method */
 };
@@ -475,6 +454,11 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
  */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{ */
 {
+    if (dbh->is_persistent) {
+        pdo_throw_exception(-25000, "Persistent sessions unsupported", (pdo_error_type *) SQLSTATE_INTERNAL_ERROR);
+        return 0;
+    }
+
     /* This enum exists to add code readability */
     /* TODO: possible future functionality
      * typedef enum { protocol_opt, dbname_opt, host_opt, port_opt, [ident_opt | user_opt], password_opt } opt_val;
@@ -498,7 +482,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
 
     num_data_src_opts = sizeof(data_src_opts) / sizeof(data_src_opt);
 
-    pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
+    pdo_mimer_handle *handle = ecalloc(1, sizeof(pdo_mimer_handle));
 
     dbh->driver_data = handle;
     handle->last_error = 0;

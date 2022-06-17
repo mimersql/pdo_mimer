@@ -31,7 +31,8 @@ extern bool _pdo_mimer_handle_checker(pdo_dbh_t *dbh, bool check_handle, bool ch
 #define pdo_mimer_check_handle(x) _pdo_mimer_handle_checker(x, true, false)
 #define pdo_mimer_check_session(x) _pdo_mimer_handle_checker(x, true, true)
 
-#define GENERAL_ERROR_SQLSTATE (pdo_error_type*) "HY000"
+#define GENERAL_ERROR_SQLSTATE "HY000"
+#define SQLSTATE_INTERNAL_ERROR "5000B"
 
 typedef struct pdo_mimer_handle_t {
     MimerSession session;
