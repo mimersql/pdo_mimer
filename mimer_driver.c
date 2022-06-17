@@ -248,15 +248,10 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
 
     switch (attribute) {
-        case PDO_ATTR_AUTOCOMMIT: {
-            bool auto_commit;
-            if (!pdo_get_bool_param(&auto_commit, value)) {
-                return false;
-            }
-
-            dbh->auto_commit = auto_commit;
-            break;
-        }
+        /*
+         * TODO: add autocommit functionality
+         * (it's part of PDO's functionality)
+         */
 
         /* custom driver attributes */
         case PDO_MIMER_ATTR_TRANS_OPTION: {
@@ -323,9 +318,10 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
 
     switch (attribute) {
-        case PDO_ATTR_AUTOCOMMIT:
-            ZVAL_BOOL(return_value, dbh->auto_commit);
-            break;
+        /*
+         * TODO: add autocommit functionality
+         * (it's part of PDO's functionality)
+         */
 
         case PDO_ATTR_CLIENT_VERSION:
             ZVAL_STRING(return_value, MimerAPIVersion());
