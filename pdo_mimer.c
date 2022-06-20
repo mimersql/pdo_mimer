@@ -19,10 +19,61 @@
 #endif
 
 #include "php.h"
+#include "php_ini.h"
 #include "ext/standard/info.h"
+#include "pdo/php_pdo.h"
+#include "pdo/php_pdo_driver.h"
 #include "php_pdo_mimer.h"
-#include "pdo_mimer_arginfo.h"
+#include "php_pdo_mimer_int.h"
+/* #include "pdo_mimer_arginfo.h" */
 
+#define REGISTER_ATTR(x) REGISTER_PDO_CLASS_CONST_LONG(#x, (x))
+
+/* TODO: check what more needs to be done here */
+PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */
+{
+    if (FAILURE == php_pdo_register_driver(&pdo_mimer_driver)) {
+        return FAILURE;
+    }
+
+    /* register custom attributes here */
+    REGISTER_ATTR(MIMER_ATTR_TRANS_OPTION);
+    REGISTER_ATTR(MIMER_TRANS_DEFAULT);
+    REGISTER_ATTR(MIMER_TRANS_READWRITE);
+    REGISTER_ATTR(MIMER_TRANS_READONLY);
+
+    return SUCCESS;
+}
+/* }}} */
+
+/* TODO: check what more needs to be done here */
+PHP_MSHUTDOWN_FUNCTION(pdo_mimer) /* {{{ */
+{
+    php_pdo_unregister_driver(&pdo_mimer_driver);
+
+    return SUCCESS;
+}
+/* }}} */
+
+/* {{{ PHP_MINFO_FUNCTION */
+PHP_MINFO_FUNCTION(pdo_mimer)
+{
+    php_info_print_table_start();
+    php_info_print_table_header(2, "PDO Driver for Mimer", "enabled");
+    php_info_print_table_row(2, "Mimer API Version", MimerAPIVersion());
+    php_info_print_table_end();
+}
+/* }}} */
+
+/* TODO: check what this does and if is needed */
+#ifdef COMPILE_DL_PDO_MIMER
+# ifdef ZTS
+ZEND_TSRMLS_CACHE_DEFINE()
+# endif
+ZEND_GET_MODULE(pdo_mimer)
+#endif
+
+/* TODO: check what this does and if is needed */
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() \
@@ -30,71 +81,26 @@
 	ZEND_PARSE_PARAMETERS_END()
 #endif
 
-/* {{{ void test1() */
-PHP_FUNCTION(test1)
-{
-	ZEND_PARSE_PARAMETERS_NONE();
-
-	php_printf("The extension %s is loaded and working!\r\n", "pdo_mimer");
-}
-/* }}} */
-
-/* {{{ string test2( [ string $var ] ) */
-PHP_FUNCTION(test2)
-{
-	char *var = "World";
-	size_t var_len = sizeof("World") - 1;
-	zend_string *retval;
-
-	ZEND_PARSE_PARAMETERS_START(0, 1)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_STRING(var, var_len)
-	ZEND_PARSE_PARAMETERS_END();
-
-	retval = strpprintf(0, "Hello %s", var);
-
-	RETURN_STR(retval);
-}
-/* }}}*/
-
-/* {{{ PHP_RINIT_FUNCTION */
-PHP_RINIT_FUNCTION(pdo_mimer)
-{
-#if defined(ZTS) && defined(COMPILE_DL_PDO_MIMER)
-	ZEND_TSRMLS_CACHE_UPDATE();
-#endif
-
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_MINFO_FUNCTION */
-PHP_MINFO_FUNCTION(pdo_mimer)
-{
-	php_info_print_table_start();
-	php_info_print_table_header(2, "pdo_mimer support", "enabled");
-	php_info_print_table_end();
-}
+/* {{{ pdo_firebird_deps */
+static const zend_module_dep pdo_mimer_deps[] = {
+        ZEND_MOD_REQUIRED("pdo")
+        ZEND_MOD_END
+};
 /* }}} */
 
 /* {{{ pdo_mimer_module_entry */
 zend_module_entry pdo_mimer_module_entry = {
-	STANDARD_MODULE_HEADER,
-	"pdo_mimer",					/* Extension name */
-	ext_functions,					/* zend_function_entry */
-	NULL,							/* PHP_MINIT - Module initialization */
-	NULL,							/* PHP_MSHUTDOWN - Module shutdown */
-	PHP_RINIT(pdo_mimer),			/* PHP_RINIT - Request initialization */
-	NULL,							/* PHP_RSHUTDOWN - Request shutdown */
-	PHP_MINFO(pdo_mimer),			/* PHP_MINFO - Module info */
-	PHP_PDO_MIMER_VERSION,		/* Version */
-	STANDARD_MODULE_PROPERTIES
+        STANDARD_MODULE_HEADER_EX,
+        NULL,
+        pdo_mimer_deps,
+        "pdo_mimer",
+        NULL,
+        PHP_MINIT(pdo_mimer),
+        PHP_MSHUTDOWN(pdo_mimer),
+        NULL,
+        NULL,
+        PHP_MINFO(pdo_mimer),
+        PHP_PDO_MIMER_VERSION,
+        STANDARD_MODULE_PROPERTIES
 };
 /* }}} */
-
-#ifdef COMPILE_DL_PDO_MIMER
-# ifdef ZTS
-ZEND_TSRMLS_CACHE_DEFINE()
-# endif
-ZEND_GET_MODULE(pdo_mimer)
-#endif
