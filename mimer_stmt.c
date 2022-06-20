@@ -57,33 +57,57 @@ end:
     return 1;
 }
 
-/* called by PDO to execute a prepared query */
-static int mimer_stmt_execute(pdo_stmt_t *stmt) /* {{{ */
-{
+static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
 
 }
-/* }}} */
 
-/* called by PDO to fetch the next row from a statement */
-static int mimer_stmt_fetch(pdo_stmt_t *stmt,
-    enum pdo_fetch_orientation ori, zend_long offset) /* {{{ */
-{
+static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
 
 }
-/* }}} */
 
+static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
 
-const struct pdo_stmt_methods mimer_stmt_methods = { /* {{{ */
+}
+
+static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
+
+}
+
+static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
+
+}
+
+static int pdo_mimer_set_attr(pdo_stmt_t *stmt, zend_long attr, zval *val) {
+
+}
+
+static int pdo_mimer_get_attr(pdo_stmt_t *stmt, zend_long attr, zval *val) {
+
+}
+
+static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *return_value) {
+
+}
+
+static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
+
+}
+
+static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
+
+}
+
+const struct pdo_stmt_methods mimer_stmt_methods = {
         pdo_mimer_stmt_dtor,   /* statement destructor method */
-        NULL,   /* statement executor method */
-        NULL,   /* statement fetcher method */
-        NULL,   /* statement describer method */
-        NULL,   /* statement get column method */
-        NULL,   /* statement parameter hook method */
-        NULL,   /* statement set attribute method */
-        NULL,   /* statement get attribute method */
-        NULL,   /* statement get column data method */
-        NULL,   /* next statement rowset method */
-        NULL,   /* statement cursor closer method */
+        pdo_mimer_stmt_executer,   /* statement executor method */
+        pdo_mimer_stmt_fetch,   /* statement fetcher method */
+        pdo_mimer_describe_col,   /* statement describer method */
+        pdo_mimer_stmt_get_col_data,   /* statement get column method */
+        pdo_mimer_stmt_param_hook,   /* statement parameter hook method */
+        pdo_mimer_set_attr,   /* statement set attribute method */
+        pdo_mimer_get_attr,   /* statement get attribute method */
+        pdo_mimer_get_column_meta,   /* statement get column data method */
+        pdo_mimer_next_rowset,   /* next statement rowset method */
+        pdo_mimer_cursor_closer,   /* statement cursor closer method */
 };
 /* }}} */
