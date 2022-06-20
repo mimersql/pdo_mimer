@@ -59,7 +59,7 @@ typedef struct pdo_data_src_parser data_src_opt;
  * Define custom driver attributes here
  */
 enum {
-    PDO_MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC
+    MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC
 };
 
 #endif /* PHP_PDO_MIMER_INT_H */

@@ -256,9 +256,9 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
          */
 
         /* custom driver attributes */
-        case PDO_MIMER_ATTR_TRANS_OPTION: {
+        case MIMER_ATTR_TRANS_OPTION: {
             long trans_option;
-            if (!pdo_get_long_param(&trans_option, value)) {
+            if (!pdo_get_long_param(&trans_option, value)) { /* user didnt enter a number type */
                 return false;
             }
 
@@ -388,7 +388,7 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
             break;
 
         /* custom driver attributes */
-        case PDO_MIMER_ATTR_TRANS_OPTION:
+        case MIMER_ATTR_TRANS_OPTION:
             ZVAL_STRING(return_value, handle->trans_option == MIMER_TRANS_READWRITE ? "Read and write" : "Read-only");
             break;
 

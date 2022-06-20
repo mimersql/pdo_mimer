@@ -27,6 +27,8 @@
 #include "php_pdo_mimer_int.h"
 /* #include "pdo_mimer_arginfo.h" */
 
+#define REGISTER_ATTR(x) REGISTER_PDO_CLASS_CONST_LONG(#x, (x))
+
 /* TODO: check what more needs to be done here */
 PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */
 {
@@ -35,7 +37,10 @@ PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */
     }
 
     /* register custom attributes here */
-    REGISTER_PDO_CLASS_CONST_LONG("PDO_MIMER_ATTR_TRANS_OPTION", (long) PDO_MIMER_ATTR_TRANS_OPTION);
+    REGISTER_ATTR(MIMER_ATTR_TRANS_OPTION);
+    REGISTER_ATTR(MIMER_TRANS_DEFAULT);
+    REGISTER_ATTR(MIMER_TRANS_READWRITE);
+    REGISTER_ATTR(MIMER_TRANS_READONLY);
 
     return SUCCESS;
 }
