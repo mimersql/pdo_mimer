@@ -85,7 +85,66 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
 }
 
 static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    MimerStatement *statement = &stmt_handle->statement;
+    int32_t return_code;
 
+    if (stmt_handle->statement == NULL || !param->is_param) { /* nothing to do */
+        return 1;
+    }
+
+    if (event_type != PDO_PARAM_EVT_EXEC_PRE) {
+        return 1;
+    }
+
+    if (param->paramno >= INT16_MAX) {
+        /* >= because +1 for parameter number later */
+        /* TODO: better error */
+        pdo_throw_exception(-25000, "Parameter number is larger than INT16_MAX",
+                            (pdo_error_type *) SQLSTATE_INTERNAL_ERROR);
+        return 0;
+    }
+
+    int16_t paramno = (int16_t)param->paramno + 1; /* parameter number is 0-indexed, while Mimer is not */
+
+    switch (PDO_PARAM_TYPE(param->param_type)) {
+        case PDO_PARAM_NULL:
+            return_code = MimerSetNull(*statement, paramno);
+            break;
+
+        case PDO_PARAM_BOOL:
+            return_code = MimerSetBoolean(*statement, paramno, Z_TYPE(param->parameter) == IS_TRUE);
+            break;
+
+        case PDO_PARAM_INT:
+            return_code = MimerSetInt64(*statement, paramno, Z_LVAL(param->parameter));
+            break;
+
+        case PDO_PARAM_STR:
+            return_code = MimerSetString8(*statement, paramno, Z_STRVAL(param->parameter));
+            break;
+
+#define UNSUPPORTED(x) \
+        case (x): pdo_throw_exception(-25000, #x " is not yet supported",  (pdo_error_type *) SQLSTATE_INTERNAL_ERROR); \
+            break;
+
+        UNSUPPORTED(PDO_PARAM_LOB)
+        UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
+        UNSUPPORTED(PDO_PARAM_STR_NATL)
+        UNSUPPORTED(PDO_PARAM_STR_CHAR)
+        UNSUPPORTED(PDO_PARAM_STMT)
+
+        default:
+            break;
+
+    }
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        stmt_handle->last_error = return_code;
+        return 0;
+    }
+
+    return 1;
 }
 
 static int pdo_mimer_set_attr(pdo_stmt_t *stmt, zend_long attr, zval *val) {
