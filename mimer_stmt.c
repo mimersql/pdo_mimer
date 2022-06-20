@@ -58,7 +58,18 @@ end:
 }
 
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    int32_t return_code;
 
+    /* TODO: check if statement will yield result set */
+
+    return_code = MimerExecute(stmt_handle->statement);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        stmt_handle->last_error = return_code;
+        return 0;
+    }
+
+    return 1;
 }
 
 static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
