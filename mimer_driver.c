@@ -31,7 +31,6 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     /* TODO: convert Mimer error codes (int32_t) to SQLSTATE (char[6]) */
 
     zend_string *err_msg = strpprintf(0, "Something went wrong -- %s:%d", file, line);
-    php_printf("%s", ZSTR_VAL(err_msg));
     pdo_throw_exception(handle->last_error, ZSTR_VAL(err_msg), GENERAL_ERROR_SQLSTATE);
 
     return handle->last_error;
@@ -547,8 +546,6 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) /* {{{
         pdo_mimer_error(dbh);
         goto cleanup;
     }
-
-    php_printf("Connected to Mimer SQL (db=%s, user=%s, pwd=%s)\n", data_src_opts[dbname_opt].optval, dbh->username, dbh->password);
 
     /* free up memory no longer needed */
     for (int i = 0; i < num_data_src_opts; i++) {
