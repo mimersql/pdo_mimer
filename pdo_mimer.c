@@ -59,7 +59,7 @@ PHP_MSHUTDOWN_FUNCTION(pdo_mimer) /* {{{ */
 PHP_MINFO_FUNCTION(pdo_mimer)
 {
     php_info_print_table_start();
-    php_info_print_table_header(2, "PDO Driver for Mimer", "enabled");
+    php_info_print_table_header(2, "PDO Driver for Mimer SQL", "enabled");
     php_info_print_table_row(2, "Mimer API Version", MimerAPIVersion());
     php_info_print_table_end();
 }
