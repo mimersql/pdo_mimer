@@ -58,7 +58,7 @@ make -j$(nproc)
 
 ##### The test file
 
-The test file `common.phpt` tells `make test` to run the tests in the `pdo_mimer` directory.
+The test file `ext/pdo_mimer/tests/common.phpt` redirects the test execution to the test scripts in the `ext/pdo/tests` directory, which contains tests common for all PDO drivers. Before redirection it sets some values in an array, in order to allow the common tests to use a mimer database.  
 
 ###### ext/pdo_mimer/tests/common.phpt
 ```phpt
