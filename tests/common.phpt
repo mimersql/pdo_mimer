@@ -8,7 +8,7 @@ if (!extension_loaded('pdo') || !extension_loaded('pdo_mimer')) print 'skip not 
 # magic auto-configuration
 
 $config = array(
-  'TESTS' => 'ext/pdo/tests'
+  'TESTS' => getenv('TEST_DIR') ?: 'ext/pdo/tests'
 );
 
 if (false !== getenv('PDO_MIMER_TEST_DSN')) {
