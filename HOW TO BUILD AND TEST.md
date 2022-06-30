@@ -59,7 +59,7 @@ make -j$(nproc)
 
 ##### The test file
 
-The test file `common.phpt` tells `make test` to run the common PDO tests in the `pdo_mimer` directory.
+The test file `pdo_mimer/tests/common.phpt` tells `make test` to run the common PDO tests in the `ext/pdo/tests` directory.
 
 ###### Set environment variables
 ```shell
