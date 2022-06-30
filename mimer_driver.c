@@ -451,7 +451,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
 
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     /* TODO: add session-persistence functionality */
-    return_code = MimerBeginSession8(optval(dbname), dbh->username ?: "" , dbh->password, &handle->session);
+    return_code = MimerBeginSession8(dbname, dbh->username ?: "" , dbh->password, &handle->session);
     if (MIMER_LOGIN_SUCCEEDED(return_code)) {
         dbh->methods = &mimer_methods;
     } else {
