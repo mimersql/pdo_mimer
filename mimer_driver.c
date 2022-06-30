@@ -403,12 +403,6 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
  * @remark DSN: <a href="https://www.php.net/manual/en/pdo.construct.php">Data Source Name</a>
  */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
-    if (dbh->is_persistent) {
-        pdo_throw_exception(MIMER_FEATURE_NOT_IMPLEMENTED, "Persistent sessions not yet implemented",
-                            (pdo_error_type *) SQLSTATE_FEATURE_NOT_SUPPORTED);
-        return 0;
-    }
-
     MimerError return_code = MIMER_LOGIN_FAILED;
     int num_data_src_opts;
     char *dbname;
