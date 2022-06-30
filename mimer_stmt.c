@@ -162,11 +162,17 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
             break;
 
         /* unimplemented */
-        case PDO_PARAM_LOB:
-        case PDO_PARAM_INPUT_OUTPUT:
-        case PDO_PARAM_STR_NATL:
-        case PDO_PARAM_STR_CHAR:
-        case PDO_PARAM_STMT:
+#       define UNSUPPORTED(pdo_param) \
+        case pdo_param:                \
+            handle_custom_err(&stmt_handle->error_info, #pdo_param " support is not yet implemented", \
+                MIMER_FEATURE_NOT_IMPLEMENTED, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, stmt->dbh->is_persistent, stmt->error_code) \
+            return 0;
+
+            UNSUPPORTED(PDO_PARAM_LOB)
+            UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
+            UNSUPPORTED(PDO_PARAM_STR_NATL)
+            UNSUPPORTED(PDO_PARAM_STR_CHAR)
+            UNSUPPORTED(PDO_PARAM_STMT)
         default:
             return 0;
 
