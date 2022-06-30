@@ -403,6 +403,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
  * @remark DSN: <a href="https://www.php.net/manual/en/pdo.construct.php">Data Source Name</a>
  */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
+    /** TODO: add session-persistence functionality */
     if (dbh->is_persistent) {
         pdo_throw_exception(MIMER_FEATURE_NOT_IMPLEMENTED, "Persistent sessions not yet implemented",
                             (pdo_error_type *) SQLSTATE_FEATURE_NOT_SUPPORTED);
@@ -411,8 +412,9 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
 
     MimerError return_code = MIMER_LOGIN_FAILED;
     int num_data_src_opts;
-    char *ident, *pwd, *dbname;
+    char *usrname;
 
+    /* DSN options */
     enum { dbname_opt, user_opt, ident_opt, password_opt};
 #   define optval(optname) data_src_opts[optname##_opt].optval
     data_src_opt data_src_opts[] = {
@@ -429,12 +431,11 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
              * { "port", PDO_MIMER_DEFAULT_PORT, 0},
              */
     };
-
     num_data_src_opts = sizeof(data_src_opts) / sizeof(data_src_opt);
 
+    /* prep the Mimer and PDO DB handles */
     pdo_mimer_handle *handle = pecalloc(1, sizeof(pdo_mimer_handle), dbh->is_persistent);
     handle->trans_option = pdo_attr_lval(driver_options, MIMER_ATTR_TRANS_OPTION, MIMER_TRANS_DEFAULT);
-
     dbh->driver_data = handle;
     dbh->skip_param_evt = /* the parameters to skip in mimer_stmt::pdo_mimer_param_hook(), not used for now */
             1 << PDO_PARAM_EVT_FREE |
@@ -444,19 +445,22 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
             1 << PDO_PARAM_EVT_NORMALIZE;
 
     if (php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts,
-                                  num_data_src_opts)) { /* get used data source name options */
-        if (optval(dbname)) {
-            dbname = optval(dbname) ?: "";
-        } if (!dbh->username) {
-            dbh->username = pestrdup(optval(ident) ?: optval(user) ?: "", dbh->is_persistent);
-        } if (!dbh->password) {
-            dbh->password = pestrdup(optval(password) ?: "", dbh->is_persistent);
+                                  num_data_src_opts)) {
+        
+        /* when PW and USR not given as PDO args, look in DSN */
+        if (!dbh->username) {
+            usrname = optval(ident) ? optval(ident) : optval(user) ? optval(user) : ""; 
+            dbh->username = pestrdup(usrname, dbh->is_persistent);
+        } 
+        if (!dbh->password) {
+            dbh->password = pestrdup(optval(password) ? optval(password) : "", dbh->is_persistent);
         }
     }
 
-    /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
-    /* TODO: add session-persistence functionality */
-    return_code = MimerBeginSession8(optval(dbname), dbh->username ?: "" , dbh->password, &handle->session);
+    /* try to connect to DB */
+    /** TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
+    return_code = MimerBeginSession8(optval(dbname), dbh->username ? dbh->username : "" , 
+        dbh->password, &handle->session);
     if (MIMER_LOGIN_SUCCEEDED(return_code)) {
         dbh->methods = &mimer_methods;
     } else {
