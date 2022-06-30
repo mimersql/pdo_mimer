@@ -436,12 +436,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     handle->trans_option = pdo_attr_lval(driver_options, MIMER_ATTR_TRANS_OPTION, MIMER_TRANS_DEFAULT);
 
     dbh->driver_data = handle;
-    dbh->skip_param_evt = /* the parameters to skip in mimer_stmt::pdo_mimer_param_hook(), not used for now */
-            1 << PDO_PARAM_EVT_FREE |
-            1 << PDO_PARAM_EVT_EXEC_POST |
-            1 << PDO_PARAM_EVT_FETCH_PRE |
-            1 << PDO_PARAM_EVT_FETCH_POST |
-            1 << PDO_PARAM_EVT_NORMALIZE;
+    dbh->skip_param_evt = 0b1111111 ^ (1 << PDO_PARAM_EVT_EXEC_PRE); /* skip all but exec_pre param events */
 
     if (php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts,
                                   num_data_src_opts)) { /* get used data source name options */
