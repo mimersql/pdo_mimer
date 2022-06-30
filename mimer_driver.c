@@ -411,7 +411,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
 
     MimerError return_code = MIMER_LOGIN_FAILED;
     int num_data_src_opts;
-    char *ident, *pwd, *dbname;
+    char *dbname;
 
     enum { dbname_opt, user_opt, ident_opt, password_opt};
 #   define optval(optname) data_src_opts[optname##_opt].optval
