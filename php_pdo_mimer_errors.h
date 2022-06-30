@@ -87,6 +87,37 @@ extern int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, 
 #define return_on_err_stmt(return_code, return_value) \
     handle_err(return_code, pdo_mimer_stmt_error(stmt), return (return_value))
 
+/**
+ * @brief Macro function to customize an error message
+ * @param mimer_err_info_p A pointer to either the `pdo_mimer_handle` or `pdo_mimer_stmt`
+ * @param err_msg A literal string of the error description
+ * @param mim_errcode A native or custom MimerSQL error code
+ * @param sqlstate A literal string with the SQLSTATE to be used by PDO
+ * @param persistence A boolean value detailing if the error message should be persistent-allocated (`dbh->is_persistent)`
+ * @param pdo_handle_errcode_p The pointer to the PDO database or statement handle object struct value `error_code`
+ *      (`dbh->error_code` or `stmt->error_code`)
+ * @see mimer_throw_except()
+ */
+#define handle_custom_err(mimer_err_info_p, err_msg, mim_errcode, sqlstate, persistence, pdo_handle_errcode_p) \
+    (mimer_err_info_p)->error_msg ?: pefree((mimer_err_info_p)->error_msg, persistence);                       \
+    (mimer_err_info_p)->error_msg = pestrdup(err_msg, persistence);                                            \
+    (mimer_err_info_p)->mimer_error = mim_errcode;                                                             \
+    strcpy(pdo_handle_errcode_p, sqlstate);
+
+/**
+ * @brief Macro function to customize an error message and then throw an exception
+ * @param mimer_err_info_p A pointer to either the `pdo_mimer_handle` or `pdo_mimer_stmt`
+ * @param err_msg A literal string of the error description
+ * @param mim_errcode A native or custom MimerSQL error code
+ * @param sqlstate A literal string with the SQLSTATE to be used by PDO
+ * @param persistence A boolean value detailing if the error message should be persistent-allocated (`dbh->is_persistent)`
+ * @param pdo_handle_errcode_p The pointer to the PDO database or statement handle object struct value `error_code`
+ * @remark Expands handle_custom_err() and calls pdo_throw_exception()
+ */
+#define mimer_throw_except(mimer_err_info_p, err_msg, mim_errcode, sqlstate, persistence, pdo_handle_errcode_p) \
+    handle_custom_err(mimer_err_info_p, err_msg, mim_errcode, sqlstate, persistence, pdo_handle_errcode_p)      \
+    pdo_throw_exception(mim_errcode, err_msg, (pdo_error_type*)(sqlstate));
+
 /*******************************************************************************
  *                              SQLSTATE CODES                                 *
  *******************************************************************************/
@@ -238,10 +269,10 @@ extern int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, 
 
 #define IS_CUSTOM_MIMER_ERROR(err) ((err) < CUSTOM_MIMER_ERROR)
 
-#define MIMER_NO_ERROR              0
-#define MIMER_LOGIN_FAILED          (-14006)
-#define CUSTOM_MIMER_ERROR          (-100000)
+#define MIMER_NO_ERROR                0
+#define MIMER_LOGIN_FAILED            (-14006)
+#define CUSTOM_MIMER_ERROR            (-100000)
 #define MIMER_FEATURE_NOT_IMPLEMENTED (-100001)
-#define MIMER_VALUE_TOO_LARGE       (-100002)
+#define MIMER_VALUE_TOO_LARGE         (-100002)
 
 #endif //PHP_SRC_PHP_PDO_MIMER_ERRORS_H
