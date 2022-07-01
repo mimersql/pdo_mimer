@@ -22,11 +22,13 @@
 #include "php_pdo_mimer.h"
 #include "php_pdo_mimer_int.h"
 #include "php_pdo_mimer_errors.h"
+
+
 /**
  * @brief A function to handle all PDO Mimer SQL errors.
  * If using a "custom" Mimer error, all error handling should be done beforehand. This function will simply
- * @param dbh The PDO database handle
- * @param stmt The PDO statement handle
+ * @param dbh A pointer to the PDO database handle object.
+ * @param stmt A pointer to the PDO statement handle object.
  * @return Mimer SQL native error code
  * @see https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/App_Return_Codes/App_Return_Codes.htm
  */
@@ -84,9 +86,10 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     return error_info->mimer_error;
 }
 
+
 /**
  * @brief PDO method to end a Mimer SQL session
- * @param dbh The PDO database handle object
+ * @param dbh A pointer to the PDO database handle object.
  * @remark Frees any allocated memory
  */
 static void mimer_handle_closer(pdo_dbh_t *dbh) {
@@ -106,11 +109,12 @@ static void mimer_handle_closer(pdo_dbh_t *dbh) {
     dbh->driver_data = NULL;
 }
 
+
 /**
  * @brief PDO method to prepare a SQL query with possible positional or named placeholders
- * @param dbh The PDO database handle object
+ * @param dbh A pointer to the PDO database handle object.
  * @param sql The SQL query to be executed
- * @param stmt The PDO statement handle object
+ * @param stmt A pointer to the PDO statement handle object.
  * @param driver_options User-specified options to Mimer SQL
  * @return true if successfully prepared a statement, false if not
  */
@@ -144,9 +148,10 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
     return MIMER_SUCCEEDED(return_code);
 }
 
+
 /**
  * @brief This function will be called by PDO to execute a raw SQL statement.
- * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @param dbh A pointer to the PDO database handle object.
  * @param sql A zend_string containing the SQL statement to be prepared.
  * @return This function returns the number of rows affected or -1 upon failure.
  */
@@ -156,6 +161,7 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     MimerError return_code;
     zend_long num_affected_rows;
 
+    /* guard against MIMER_STATEMENT_CANNOT_BE_PREPARED so we can try to execute the statement */
     if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement))
             && return_code != MIMER_STATEMENT_CANNOT_BE_PREPARED) {
         pdo_mimer_error(dbh);
@@ -180,9 +186,10 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     return num_affected_rows;
 }
 
+
 /**
  * @brief PDO method to start a transaction
- * @param dbh The PDO database handle object
+ * @param dbh A pointer to the PDO database handle object.
  * @return true if transaction was started, false if not
  */
 static bool mimer_handle_begin(pdo_dbh_t *dbh) {
@@ -193,9 +200,10 @@ static bool mimer_handle_begin(pdo_dbh_t *dbh) {
     return true;
 }
 
+
 /**
- * @brief This function will be called by PDO to commit a database transaction.
- * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @brief This function will be called by PDO to commit a transaction.
+ * @param dbh A pointer to the PDO database handle object.
  * @return true on success, false if failure
  */
 static bool mimer_handle_commit(pdo_dbh_t *dbh) {
@@ -206,9 +214,10 @@ static bool mimer_handle_commit(pdo_dbh_t *dbh) {
     return true;
 }
 
+
 /**
- * @brief This function will be called by PDO to rollback a database transaction.
- * @param dbh Pointer to the database handle initialized by the handle factory.
+ * @brief This function will be called by PDO to rollback a transaction.
+ * @param dbh A pointer to the PDO database handle object.
  * @return true on success, false if failure
  */
 static bool mimer_handle_rollback(pdo_dbh_t *dbh) {
@@ -219,9 +228,10 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh) {
     return true;
 }
 
+
 /**
  * @brief PDO method to set driver attributes
- * @param dbh The PDO database handle object
+ * @param dbh A pointer to the PDO database handle object
  * @param attribute A PDO or Mimer SQL attribute
  * @param value The value to set for the given attribute
  * @return true on successfully setting the attribute, false if not
@@ -255,10 +265,11 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
     return true;
 }
 
+
 /**
  * @brief PDO method to retrieve the latest error
- * @param dbh The PDO database handle object
- * @param stmt The PDO statement handle object
+ * @param dbh A pointer to the PDO database handle object.
+ * @param stmt A pointer to the PDO statement handle object.
  * @param info The information array to add Mimer SQL error information to
  */
 static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
@@ -275,6 +286,7 @@ static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
     add_next_index_long(info, error_info->mimer_error);
     add_next_index_string(info, error_info->error_msg ?: "Last operation completed successfully.");
 }
+
 
 /**
  * @brief Get driver attributes (settings)
@@ -296,38 +308,9 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
             ZVAL_STRING(return_value, "mimer");
             break;
 
-        case PDO_ATTR_CONNECTION_STATUS:
+        case PDO_ATTR_CONNECTION_STATUS: {
             /* TODO: find out how to do this */
-
             /* MySQLs status function https://dev.mysql.com/doc/refman/8.0/en/show-status.html */
-            /* +--------------------------+------------+
-               | Variable_name            | Value      |
-               +--------------------------+------------+
-               | Aborted_clients          | 0          |
-               | Aborted_connects         | 0          |
-               | Bytes_received           | 155372598  |
-               | Bytes_sent               | 1176560426 |
-               | Connections              | 30023      |
-               | Created_tmp_disk_tables  | 0          |
-               | Created_tmp_tables       | 8340       |
-               | Created_tmp_files        | 60         |
-               ...
-               | Open_tables              | 1          |
-               | Open_files               | 2          |
-               | Open_streams             | 0          |
-               | Opened_tables            | 44600      |
-               | Questions                | 2026873    |
-               ...
-               | Table_locks_immediate    | 1920382    |
-               | Table_locks_waited       | 0          |
-               | Threads_cached           | 0          |
-               | Threads_created          | 30022      |
-               | Threads_connected        | 1          |
-               | Threads_running          | 1          |
-               | Uptime                   | 80380      |
-               +--------------------------+------------+ */
-
-        {
             if (handle->session == NULL) {
                 ZVAL_STRING(return_value, "Disconnected");
                 break;
@@ -358,6 +341,11 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
     return 1;
 }
 
+/**
+ * @brief A function to check if the user is still connected to a MimerSession
+ * @param dbh A pointer to the PDO database handle object.
+ * @return true or false
+ */
 static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh) {
     pdo_mimer_handle *handle = dbh->driver_data;
 
@@ -367,9 +355,7 @@ static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh) {
 }
 
 
-/**
- * @brief Declare the methods Mimer uses and give them to the PDO driver
- */
+/* declares the methods Mimer uses and give them to the PDO driver */
 static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         mimer_handle_closer,   /* handle closer method */
         mimer_handle_preparer,   /* handle preparer method */
@@ -389,12 +375,12 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         NULL    /* get gc method */
 };
 
+
 /**
  * @brief This method handles PDO's construction for use with Mimer SQL
- *
- * @example @code $PDO = new PDO("mimer:dbname=test_db"); @endcode
- *
- * @remark DSN: <a href="https://www.php.net/manual/en/pdo.construct.php">Data Source Name</a>
+ * @param dbh A pointer to the PDO database handle object.
+ * @param driver_options The user-defined driver options to be used with PDO Mimer
+ * @example @code $PDO = new PDO("mimer:dbname=$dbname", $user, $pass, $attr_array); @endcode
  */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     MimerError return_code = MIMER_LOGIN_FAILED;
@@ -460,6 +446,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     return MIMER_LOGIN_SUCCEEDED(return_code);
 }
 
+/* register the driver in PDO */
 const pdo_driver_t pdo_mimer_driver = {
         PDO_DRIVER_HEADER(mimer),
         pdo_mimer_handle_factory
