@@ -405,14 +405,19 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     MimerError return_code = MIMER_LOGIN_FAILED;
     int num_data_src_opts;
-    char *dbname;
 
-    enum { dbname_opt, user_opt, password_opt};
+    /**
+     * @brief Macro function to get a DSN option's value
+     * @param optname The name of the option to get the value from
+     * @return A string or NULL
+     */
 #   define optval(optname) data_src_opts[optname##_opt].optval
+
+    enum { dbname_opt, user_opt, password_opt}; /* must match format `optname_opt` from data_src_opts */
     data_src_opt data_src_opts[] = {
             /* if the user does not give database name, NULL will trigger default database connection */
             { "dbname", NULL, 0 },
-            { "user", "", 0 },
+            { "user", "", 0 }, /* MimerBeginSession crashes on NULL user */
             { "password", NULL, 0 },
 
             /**
@@ -434,9 +439,9 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     /* get used data source name options */
     php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts,
                                   num_data_src_opts);
-    if (optval(dbname)) {
-        dbname = optval(dbname);
-    } if (!dbh->username && optval(user)) {
+
+    /* setting user and password params in PDO constructor takes precedence over DSN options */
+    if (!dbh->username && optval(user)) {
         dbh->username = pestrdup(optval(user), dbh->is_persistent);
     } if (!dbh->password && optval(password)) {
         dbh->password = pestrdup(optval(password), dbh->is_persistent);
@@ -444,7 +449,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
 
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     /* TODO: add session-persistence functionality */
-    return_code = MimerBeginSession8(dbname, dbh->username, dbh->password, &handle->session);
+    return_code = MimerBeginSession8(optval(dbname), dbh->username, dbh->password, &handle->session);
     if (MIMER_LOGIN_SUCCEEDED(return_code)) {
         dbh->methods = &mimer_methods;
     } else {
