@@ -35,6 +35,7 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     MimerErrorInfo *error_info;
     pdo_error_type *pdo_error;
     MimerError return_code;
+    char* tmp_buf;
 
     /* handle either statement or session error */
     if (stmt) {
@@ -59,25 +60,24 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     /* handle errors and build error info */
     return_code = MimerGetError8(mimer_handle, &error_info->mimer_error, NULL, 0);
     if (return_code == MIMER_NO_ERROR) {
-        error_info->error_msg = pestrdup("Last operation completed successfully.", dbh->is_persistent);
+        tmp_buf = estrdup("Last operation completed successfully.");
     } else if (MIMER_SUCCEEDED(return_code)) { /* get error msg */
         size_t num_chars = return_code + 1; /* MimerGetError returns number of characters without null-termination */
-        error_info->error_msg = pecalloc(num_chars, sizeof(char), dbh->is_persistent);
-        MimerGetError8(mimer_handle, &error_info->mimer_error, error_info->error_msg, num_chars);
+        tmp_buf = ecalloc(num_chars, sizeof(char));
+        MimerGetError8(mimer_handle, &error_info->mimer_error, tmp_buf, num_chars);
     } else { /* error getting error message */
-        char *error_msg;
-        spprintf(&error_msg, 0,
+        spprintf(&tmp_buf, 0,
                  "%s:%d Error retrieving error information. Return code(%d), Mimer error(%d)",
                  file, line, return_code, error_info->mimer_error);
 
         error_info->mimer_error = return_code;
-        error_info->error_msg = pestrdup(error_msg, dbh->is_persistent);
     }
 
-    /* get SQLSTATE error code from native Mimer SQL error */
     strcpy(*pdo_error, MimerGetSQLState(error_info->mimer_error));
+    error_info->error_msg = pestrdup(tmp_buf, dbh->is_persistent);
+    efree(tmp_buf);
 
-    if (!dbh->methods) { /* error constructing PDO */
+    if (!dbh->methods) { /* error constructing PDO object */
         pdo_throw_exception(error_info->mimer_error, error_info->error_msg, pdo_error);
     }
 
