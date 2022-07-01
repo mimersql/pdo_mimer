@@ -33,6 +33,7 @@
  * @see https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/App_Return_Codes/App_Return_Codes.htm
  */
 int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line) {
+    pdo_mimer_handle *mimer_db_handle = dbh->driver_data;
     MimerHandle mimer_handle;
     MimerErrorInfo *error_info;
     pdo_error_type *pdo_error;
@@ -42,15 +43,19 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     /* handle either statement or session error */
     if (stmt) {
         pdo_error = &stmt->error_code;
-        pdo_mimer_stmt *handle = stmt->driver_data;
-        /* default to session handle if statement unable to be created */
-        mimer_handle = (MimerHandle)handle->statement ?: (MimerHandle)((pdo_mimer_handle *)dbh->driver_data)->session;
-        error_info = &handle->error_info;
+        pdo_mimer_stmt *mimer_stmt_handle = stmt->driver_data;
+
+        if (mimer_stmt_handle->statement == NULL) { /* default to session mimer_stmt_handle if statement unable to be created */
+            mimer_handle = (MimerHandle) mimer_db_handle->session;
+        } else {
+            mimer_handle = (MimerHandle) mimer_stmt_handle->statement;
+        }
+
+        error_info = &mimer_stmt_handle->error_info;
     } else {
         pdo_error = &dbh->error_code;
-        pdo_mimer_handle *handle = dbh->driver_data;
-        mimer_handle = (MimerHandle)handle->session;
-        error_info = &handle->error_info;
+        mimer_handle = (MimerHandle)mimer_db_handle->session;
+        error_info = &mimer_db_handle->error_info;
     }
 
     /* free any previous error message */
@@ -138,7 +143,7 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
     int32_t cursor = (pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY)
                       == PDO_CURSOR_FWDONLY) ? MIMER_FORWARD_ONLY : MIMER_SCROLLABLE;
 
-    handle_err_stmt(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(new_sql ?: sql), cursor,
+    handle_err_stmt(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(new_sql ? new_sql : sql), cursor,
                                                        &stmt_handle->statement))
 
     if (new_sql != NULL) {
@@ -252,7 +257,7 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
                 return false;
             }
 
-            handle->trans_option = trans_option == MIMER_TRANS_READONLY ?: MIMER_TRANS_READWRITE;
+            handle->trans_option = (trans_option == MIMER_TRANS_READONLY) ? MIMER_TRANS_READONLY : MIMER_TRANS_READWRITE;
             break;
         }
 
@@ -284,7 +289,7 @@ static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
     }
 
     add_next_index_long(info, error_info->mimer_error);
-    add_next_index_string(info, error_info->error_msg ?: "Last operation completed successfully.");
+    add_next_index_string(info, error_info->error_msg ? error_info->error_msg: "Last operation completed successfully.");
 }
 
 
