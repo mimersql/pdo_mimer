@@ -75,6 +75,6 @@ configurations for testing.
 
 ##### Test
 ```shell
-make TESTS=ext/pdo_mimer/tests test  # runs only common PDO tests on PDO Mimer
+make test TESTS=ext/pdo_mimer/tests test  # runs only common PDO tests on PDO Mimer
 make test  # runs all PHP tests
 ```
