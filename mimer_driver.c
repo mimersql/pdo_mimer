@@ -431,20 +431,20 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     dbh->driver_data = handle;
     dbh->skip_param_evt = 0b1111111 ^ (1 << PDO_PARAM_EVT_EXEC_PRE); /* skip all but exec_pre param events */
 
-    if (php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts,
-                                  num_data_src_opts)) { /* get used data source name options */
-        if (optval(dbname)) {
-            dbname = optval(dbname) ?: "";
-        } if (!dbh->username) {
-            dbh->username = pestrdup(optval(ident) ?: optval(user) ?: "", dbh->is_persistent);
-        } if (!dbh->password) {
-            dbh->password = pestrdup(optval(password) ?: "", dbh->is_persistent);
-        }
+    /* get used data source name options */
+    php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, data_src_opts,
+                                  num_data_src_opts);
+    if (optval(dbname)) {
+        dbname = optval(dbname);
+    } if (!dbh->username && optval(user)) {
+        dbh->username = pestrdup(optval(user), dbh->is_persistent);
+    } if (!dbh->password && optval(password)) {
+        dbh->password = pestrdup(optval(password), dbh->is_persistent);
     }
 
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     /* TODO: add session-persistence functionality */
-    return_code = MimerBeginSession8(dbname, dbh->username ?: "" , dbh->password, &handle->session);
+    return_code = MimerBeginSession8(dbname, dbh->username, dbh->password, &handle->session);
     if (MIMER_LOGIN_SUCCEEDED(return_code)) {
         dbh->methods = &mimer_methods;
     } else {
