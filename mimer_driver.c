@@ -407,13 +407,12 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     int num_data_src_opts;
     char *dbname;
 
-    enum { dbname_opt, user_opt, ident_opt, password_opt};
+    enum { dbname_opt, user_opt, password_opt};
 #   define optval(optname) data_src_opts[optname##_opt].optval
     data_src_opt data_src_opts[] = {
             /* if the user does not give database name, NULL will trigger default database connection */
-            {"dbname", NULL, 0 },
-            { "user", NULL, 0 },
-            { "ident", NULL, 0 },
+            { "dbname", NULL, 0 },
+            { "user", "", 0 },
             { "password", NULL, 0 },
 
             /**
