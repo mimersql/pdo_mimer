@@ -257,8 +257,12 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
                 return false;
             }
 
-            handle->trans_option = (trans_option == MIMER_TRANS_READONLY) ? MIMER_TRANS_READONLY : MIMER_TRANS_READWRITE;
-            break;
+            if (trans_option != MIMER_TRANS_READONLY && trans_option != MIMER_TRANS_READWRITE)
+                return false;
+            else {
+                handle->trans_option = trans_option;
+                break;
+            }
         }
 
         /* TODO: add charset attribute support */
