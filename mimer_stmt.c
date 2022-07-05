@@ -82,6 +82,7 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerStatement *statement = &stmt_handle->statement;
     MimerError return_code;
+    zval *parameter;
 
     if (stmt_handle->statement == NULL || !param->is_param) { /* nothing to do */
         return 1;
@@ -103,21 +104,24 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
 
     int16_t paramno = (int16_t)param->paramno + 1; /* parameter number is 0-indexed, while Mimer is not */
 
+    /* unwrap reference if necessary */
+    parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
+
     switch (PDO_PARAM_TYPE(param->param_type)) {
         case PDO_PARAM_NULL:
             return_code = MimerSetNull(*statement, paramno);
             break;
 
         case PDO_PARAM_BOOL:
-            return_code = MimerSetBoolean(*statement, paramno, Z_TYPE(param->parameter) == IS_TRUE);
+            return_code = MimerSetBoolean(*statement, paramno, Z_TYPE_P(parameter) == IS_TRUE);
             break;
 
         case PDO_PARAM_INT:
-            return_code = MimerSetInt64(*statement, paramno, Z_LVAL(param->parameter));
+            return_code = MimerSetInt64(*statement, paramno, Z_LVAL_P(parameter));
             break;
 
         case PDO_PARAM_STR:
-            return_code = MimerSetString8(*statement, paramno, Z_STRVAL(param->parameter));
+            return_code = MimerSetString8(*statement, paramno, Z_STRVAL_P(parameter));
             break;
 
         /* unimplemented */
