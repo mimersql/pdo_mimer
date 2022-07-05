@@ -42,7 +42,6 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
     return 1;
 }
 
-
 /**
  * @brief Execute a prepared SQL statement.
  * @param stmt A pointer to the PDO statement handle object.
@@ -50,23 +49,58 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
  */
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-
-    /* TODO: check if statement will yield result set */
-    return_on_err_stmt(MimerExecute(stmt_handle->statement), 0)
-
+    
+    if(MimerStatementHasResultSet(stmt_handle->statement)){
+        return_on_err_stmt(MimerOpenCursor(stmt_handle->statement), 0)
+        php_pdo_stmt_set_column_count(stmt, MimerColumnCount(stmt_handle->statement));
+    } else {
+        return_on_err_stmt(MimerExecute(stmt_handle->statement), 0)
+    }
     return 1;
 }
 
 static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
-    return 0;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    return_on_err_stmt(MimerFetch(stmt_handle->statement), 0)
+    return 1;
 }
 
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
-    return 0;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    int mim_colno = colno + 1; 
+	#define MAX_COLUMN_NAME_LEN 20 /** TODO: Move this or do it another way, is there an existing constant? */ 
+    char str_buf[MAX_COLUMN_NAME_LEN];
+    
+    return_on_err_stmt(MimerColumnName8(stmt_handle->statement, mim_colno, str_buf, MAX_COLUMN_NAME_LEN ), 0);
+	stmt->columns[colno].name = zend_string_init(str_buf, strlen(str_buf), 0);
+	stmt->columns[colno].maxlen = SIZE_MAX;
+	stmt->columns[colno].precision = 0;
+    return 1;
 }
 
 static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
-    return 0;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    int mim_colno = colno + 1; 
+    int32_t tst = MimerColumnType(stmt_handle->statement, mim_colno);
+    
+    /** TODO: Rewrite the test macros to include types that are missing from the MimerIsXX() checks */
+    if (MimerIsInt64(tst) || tst == MIMER_NATIVE_INTEGER_NULLABLE || tst == MIMER_NATIVE_INTEGER){
+        int64_t res;
+        return_on_err_stmt(MimerGetInt64(stmt_handle->statement, mim_colno, &res), 0)
+        ZVAL_LONG(result, res);
+    }  else if (MimerIsString(tst)){
+        #define MAX_STR_LEN 100 /** TODO: Move this or do it another way, is there an existing constant? */
+        //char str_buf[MAX_STR_LEN];
+        //return_on_err_stmt(MimerGetString8(stmt_handle->statement, mim_colno, str_buf, 1), 0)
+        //printf("String: %s\n", str_buf);
+    }  
+
+    else {
+        strcpy(stmt->error_code, SQLSTATE_GENERAL_ERROR);
+        pdo_throw_exception(MIMER_FEATURE_NOT_IMPLEMENTED, "Unknown column type", &stmt->error_code);
+    }
+    
+    return 1;
 }
 
 /**
@@ -163,7 +197,9 @@ static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
 }
 
 static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
-    return 0;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
+    return 1;
 }
 
 
