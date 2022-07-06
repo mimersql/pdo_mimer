@@ -26,10 +26,11 @@
 
 /**
  * @brief A function to handle all PDO Mimer SQL errors.
- * If using a "custom" Mimer error, all error handling should be done beforehand. This function will simply
  * @param dbh A pointer to the PDO database handle object.
  * @param stmt A pointer to the PDO statement handle object.
  * @return Mimer SQL native error code
+ * @remark If using a "custom" Mimer error, all error handling should be done beforehand. This function simply
+ *      builds error information specific to the driver or statement handle.
  * @see https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/App_Return_Codes/App_Return_Codes.htm
  */
 int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line) {
