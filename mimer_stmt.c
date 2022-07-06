@@ -57,8 +57,61 @@ static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     return 1;
 }
 
+
+/**
+ * @brief This function will be called by PDO to fetch a row from a previously executed statement object.
+ * @param stmt Pointer to the statement structure initialized by pdo_mimer_handle_preparer.
+ * @param ori One of PDO_FETCH_ORI_xxx which will determine which row will be fetched.
+ * @param offset If ori is set to PDO_FETCH_ORI_ABS or PDO_FETCH_ORI_REL, offset represents the row desired or the row
+ *      relative to the current position, respectively. Otherwise, this value is ignored.
+ * @return 1 for success or 0 in the event of failure.
+ * @remark The results of this fetch are driver dependent and the data is usually stored in the driver_data member of
+ *      the pdo_stmt_t object. The ori and offset parameters are only meaningful if the statement represents a
+ *      scrollable cursor.
+ * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">
+ *          PDO Driver How-To: Fleshing out your skeleton (SKEL_stmt_fetch)
+ *      </a>
+ */
 static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
-    return 0;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    MimerStatement *mimer_statement = &stmt_handle->statement;
+    int32_t fetch_op_mode;
+    MimerError return_code;
+
+    if (!MimerStatementHasResultSet(*mimer_statement)) {
+        return 0;
+    }
+
+    switch (ori) { /* map PDO fetch orientation to MimerFetchScroll operation mode */
+        case PDO_FETCH_ORI_NEXT:
+            fetch_op_mode = MIMER_NEXT;
+            break;
+
+        case PDO_FETCH_ORI_PRIOR:
+            fetch_op_mode = MIMER_PREVIOUS;
+            break;
+
+        case PDO_FETCH_ORI_ABS:
+            fetch_op_mode = MIMER_ABSOLUTE;
+            break;
+
+        case PDO_FETCH_ORI_FIRST:
+            fetch_op_mode = MIMER_FIRST;
+            break;
+
+        case PDO_FETCH_ORI_LAST:
+            fetch_op_mode = MIMER_LAST;
+            break;
+
+        case PDO_FETCH_ORI_REL:
+        default:
+            fetch_op_mode = MIMER_RELATIVE;
+            break;
+    }
+
+    return_on_err_stmt(return_code = MimerFetchScroll(*mimer_statement, fetch_op_mode, (int32_t)offset), 0)
+
+    return return_code != MIMER_NO_DATA;
 }
 
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
