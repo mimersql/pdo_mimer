@@ -15,8 +15,8 @@ try {
     @$dbh->exec('DROP TABLE tsttbl');
     $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY, name VARCHAR(10))');
     $stmt = $dbh->prepare("INSERT INTO tsttbl (id, name) VALUES(:idvar, :namevar)");
-    $stmt->bindParam(':idvar', $idvar);
-    $stmt->bindParam(':namevar', $namevar);
+    $stmt->bindParam(':idvar', $idvar, PDO::PARAM_INT);
+    $stmt->bindParam(':namevar', $namevar, PDO::PARAM_STR);
     $idvar = 1;
     $namevar = 'A';
     $stmt->execute();
