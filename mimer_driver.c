@@ -396,6 +396,12 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     MimerError return_code = MIMER_LOGIN_FAILED;
     int num_data_src_opts;
 
+    /* Leave this guard here until we're ready to test persistent connections*/
+    if(dbh->is_persistent){
+        strcpy(dbh->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
+        pdo_throw_exception(MIMER_FEATURE_NOT_IMPLEMENTED,"Persistent connections not yet supported", &dbh->error_code);
+    }
+
     /**
      * @brief Macro function to get a DSN option's value
      * @param optname The name of the option to get the value from
