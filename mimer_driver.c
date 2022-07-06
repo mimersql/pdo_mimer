@@ -140,11 +140,12 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
     }
 
     /* if no option given, assign PDO_CURSOR_FWDONLY as default */
-    int32_t cursor = (pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY)
+    stmt_handle->cursor_type = (pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY)
                       == PDO_CURSOR_FWDONLY) ? MIMER_FORWARD_ONLY : MIMER_SCROLLABLE;
 
-    handle_err_stmt(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(new_sql ? new_sql : sql), cursor,
-                                                       &stmt_handle->statement))
+
+    handle_err_stmt(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(new_sql ? new_sql : sql),
+                                                       stmt_handle->cursor_type, &stmt_handle->statement))
 
     if (new_sql != NULL) {
         zend_string_release(new_sql);
