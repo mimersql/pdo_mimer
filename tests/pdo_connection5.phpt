@@ -5,7 +5,7 @@ Mimer SQL (Connection): Connect to DB with invalid DSN option
 pdo_mimer
 
 --DESCRIPTION--
-As of 04/07/22, expected behaviour not yet defined, i.e. should ivalid options be ignored or cause exception
+Intended behaviour by PDO seems to be to ignore invalid DSN options. 
 
 --SKIPIF--
 <?php require('skipif.inc'); ?>
@@ -15,10 +15,11 @@ As of 04/07/22, expected behaviour not yet defined, i.e. should ivalid options b
 require("testdb.inc");
 try {
     $dbh = new PDO("mimer:non-existing-option=val", PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
+    print("done");
 } catch (PDOException $e) {
     print "PDOException was thrown";
 }
 
 ?>
 --EXPECT--
-PDOException was thrown
+done
