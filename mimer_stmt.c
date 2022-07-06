@@ -50,9 +50,9 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
  */
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    MimerStatement *statement = &stmt_handle->statement;
 
-    /* TODO: check if statement will yield result set */
-    return_on_err_stmt(MimerExecute(stmt_handle->statement), 0)
+    return_on_err_stmt(MimerStatementHasResultSet(*statement) ? MimerOpenCursor(*statement) : MimerExecute(*statement), 0)
 
     return 1;
 }
