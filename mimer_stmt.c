@@ -165,19 +165,18 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
  */
 static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerError return_code;
     int mim_colno = colno + 1; 
-    int32_t tst = MimerColumnType(stmt_handle->statement, mim_colno);
+    MimerError return_code = MimerColumnType(stmt_handle->statement, mim_colno);
+    return_on_err_stmt(return_code, 0)
     
     /** TODO: Rewrite the test macros to include types that are missing from the MimerIsXX() checks */
-    if (MimerIsInt64(tst) || tst == MIMER_NATIVE_INTEGER_NULLABLE || tst == MIMER_NATIVE_INTEGER){
+    if (MimerIsInt64(return_code) || return_code == MIMER_NATIVE_INTEGER_NULLABLE || return_code == MIMER_NATIVE_INTEGER){
         int64_t res;
         return_on_err_stmt(MimerGetInt64(stmt_handle->statement, mim_colno, &res), 0)
         ZVAL_LONG(result, res);
-    }  else if (MimerIsString(tst)){
+    }  else if (MimerIsString(return_code)){
         MimerGetStr(MimerGetString8, str_buf, return_code, stmt_handle->statement, mim_colno);
         return_on_err_stmt(return_code, 0)
-
         ZVAL_STRING(result, str_buf);
     }
 
