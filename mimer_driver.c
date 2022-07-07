@@ -166,17 +166,21 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     zend_long num_affected_rows = 0;
 
     if (MIMER_SUCCEEDED(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement))) {
-        if (!MimerStatementHasResultSet(statement)) { /* don't execute result set queries */
-            return_on_err(num_affected_rows = MimerExecute(statement), -1)
+        if (!MIMER_SUCCEEDED(num_affected_rows = MimerExecute(statement))) { /* probably a select query */
+            MimerError mimer_error;
+            MimerGetStr(MimerGetError8, error_msg, return_code, statement, &mimer_error)
+            handle_custom_err(&handle->error_info, error_msg, mimer_error, SQLSTATE_GENERAL_ERROR, dbh->is_persistent,
+                              dbh->error_code)
+            return -1;
         }
-        return_on_err(MimerEndStatement(&statement), -1)
+
+        return_code = MimerEndStatement(&statement);
     } else if (return_code == MIMER_STATEMENT_CANNOT_BE_PREPARED) {
-        /* The statement was a DDL statement, which cannot be prepared, or a query yielding a result set */
-        return_on_err(MimerExecuteStatement8(handle->session, ZSTR_VAL(sql)), -1)
-    } else {
-        return_on_err(return_code, -1)
+        /* The statement was a DDL statement, which cannot be prepared */
+        return_code = MimerExecuteStatement8(handle->session, ZSTR_VAL(sql));
     }
 
+    return_on_err(return_code, -1)
     return num_affected_rows;
 }
 
