@@ -29,4 +29,24 @@ try {
 
 ?>
 --EXPECT--
-TBD
+Array
+(
+    [id] => 1
+    [0] => 1
+    [name] => A
+    [1] => A
+)
+Array
+(
+    [id] => 2
+    [0] => 2
+    [name] => B
+    [1] => B
+)
+Array
+(
+    [id] => 3
+    [0] => 3
+    [name] => C
+    [1] => C
+)

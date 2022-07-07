@@ -15,7 +15,6 @@ try {
     @$dbh->exec('DROP TABLE tsttbl');
     $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY, name VARCHAR(10))');
     $stmt = $dbh->prepare("INSERT INTO tsttbl (id, name) VALUES(?, ?)");
-    
     $stmt->bindParam(1, $idvar, PDO::PARAM_INT);
     $stmt->bindParam(2, $namevar, PDO::PARAM_STR);
     $idvar = 1;
@@ -33,4 +32,10 @@ try {
 
 ?>
 --EXPECT--
-TBD
+Array
+(
+    [id] => 1
+    [0] => 1
+    [name] => A
+    [1] => A
+)
