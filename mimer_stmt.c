@@ -121,9 +121,11 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
     MimerGetStr(MimerColumnName8, str_buf, return_code, stmt_handle->statement, mim_colno);
     return_on_err_stmt(return_code, 0);
 
-	stmt->columns[colno].name = zend_string_init(str_buf, strlen(str_buf), 0);
-	stmt->columns[colno].maxlen = SIZE_MAX;
-	stmt->columns[colno].precision = 0;
+	stmt->columns[colno] = (struct pdo_column_data) {
+            .name = zend_string_init(str_buf, strlen(str_buf), 0),
+            .maxlen = SIZE_MAX,
+            .precision = 0
+    };
 
     return 1;
 }
