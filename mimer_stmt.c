@@ -49,19 +49,18 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
  */
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerError return_code;
-    
+
     if(MimerStatementHasResultSet(stmt_handle->statement)) {
+        if (stmt->executed) {
+            return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
+        }
+        return_on_err_stmt(MimerOpenCursor(stmt_handle->statement), 0)
+
         int num_columns;
-
-        pdo_mimer_open_cursor(stmt_handle, return_code)
-        return_on_err_stmt(return_code, 0)
-
         return_on_err_stmt(num_columns = MimerColumnCount(stmt_handle->statement), 0)
-
         php_pdo_stmt_set_column_count(stmt, num_columns);
     } else {
-        return_on_err_stmt(return_code = MimerExecute(stmt_handle->statement), 0)
+        return_on_err_stmt(MimerExecute(stmt_handle->statement), 0)
     }
 
     return 1;
@@ -92,38 +91,36 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
         return 0;
     }
 
-    if (stmt_handle->cursor_type == MIMER_SCROLLABLE) {
-        switch (ori) { /* map PDO fetch orientation to MimerFetchScroll operation mode */
-            case PDO_FETCH_ORI_NEXT:
-                fetch_op_mode = MIMER_NEXT;
-                break;
+    /* map PDO fetch orientation to MimerFetchScroll operation mode */
+    switch (ori) {
+        case PDO_FETCH_ORI_NEXT:
+            fetch_op_mode = MIMER_NEXT;
+            break;
 
-            case PDO_FETCH_ORI_PRIOR:
-                fetch_op_mode = MIMER_PREVIOUS;
-                break;
+        case PDO_FETCH_ORI_PRIOR:
+            fetch_op_mode = MIMER_PREVIOUS;
+            break;
 
-            case PDO_FETCH_ORI_ABS:
-                fetch_op_mode = MIMER_ABSOLUTE;
-                break;
+        case PDO_FETCH_ORI_ABS:
+            fetch_op_mode = MIMER_ABSOLUTE;
+            break;
 
-            case PDO_FETCH_ORI_FIRST:
-                fetch_op_mode = MIMER_FIRST;
-                break;
+        case PDO_FETCH_ORI_FIRST:
+            fetch_op_mode = MIMER_FIRST;
+            break;
 
-            case PDO_FETCH_ORI_LAST:
-                fetch_op_mode = MIMER_LAST;
-                break;
+        case PDO_FETCH_ORI_LAST:
+            fetch_op_mode = MIMER_LAST;
+            break;
 
-            case PDO_FETCH_ORI_REL:
-            default:
-                fetch_op_mode = MIMER_RELATIVE;
-                break;
-        }
-
-        return_on_err_stmt(return_code = MimerFetchScroll(*mimer_statement, fetch_op_mode, (int32_t)offset), 0)
-    } else { /* MIMER_FORWARD_ONLY */
-        return_on_err_stmt(return_code = MimerFetch(*mimer_statement), 0)
+        case PDO_FETCH_ORI_REL:
+        default:
+            fetch_op_mode = MIMER_RELATIVE;
+            break;
     }
+
+    return_on_err_stmt(return_code = stmt_handle->cursor_type == MIMER_FORWARD_ONLY ? MimerFetch(*mimer_statement) :
+            MimerFetchScroll(*mimer_statement, fetch_op_mode, (int32_t)offset), 0)
 
     return return_code != MIMER_NO_DATA;
 }
@@ -283,10 +280,9 @@ static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
 
 static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerError return_code;
 
-    pdo_mimer_close_cursor(stmt_handle, return_code)
-    return_on_err_stmt(return_code, 0)
+    return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
+
     return 1;
 }
 
