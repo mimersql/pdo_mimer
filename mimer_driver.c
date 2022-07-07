@@ -165,29 +165,19 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
     MimerStatement statement;
     MimerError return_code;
-    zend_long num_affected_rows;
+    zend_long num_affected_rows = 0;
 
-    /* guard against MIMER_STATEMENT_CANNOT_BE_PREPARED so we can try to execute the statement */
-    if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement))
-            && return_code != MIMER_STATEMENT_CANNOT_BE_PREPARED) {
-        pdo_mimer_error(dbh);
-        return -1;
-    }
-
-    /* either a select query or a query that can't be used with MimerBeginStatement() */
-    if (MimerStatementHasResultSet(statement) || return_code == MIMER_STATEMENT_CANNOT_BE_PREPARED) {
-        if (statement != NULL) {
-            return_on_err(MimerEndStatement(&statement), -1)
+    if (MIMER_SUCCEEDED(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement))) {
+        if (!MimerStatementHasResultSet(statement)) { /* don't execute result set queries */
+            return_on_err(num_affected_rows = MimerExecute(statement), -1)
         }
-        return_on_err(MimerExecuteStatement8(handle->session, ZSTR_VAL(sql)), -1) /* TODO: count affected rows */
-
-        return 0;
+        return_on_err(MimerEndStatement(&statement), -1)
+    } else if (return_code == MIMER_STATEMENT_CANNOT_BE_PREPARED) {
+        /* The statement was a DDL statement, which cannot be prepared, or a query yielding a result set */
+        return_on_err(MimerExecuteStatement8(handle->session, ZSTR_VAL(sql)), -1)
+    } else {
+        return_on_err(return_code, -1)
     }
-
-    /* MimerExecute() outputs number of affected rows upon success. */
-    return_on_err(num_affected_rows = MimerExecute(statement), -1)
-
-    return_on_err(MimerEndStatement(&statement), -1)
 
     return num_affected_rows;
 }
