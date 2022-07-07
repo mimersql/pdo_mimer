@@ -28,6 +28,31 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
 
 #define MimerStatementHasResultSet(statement) ((statement) != NULL && MimerColumnCount((statement)) > 0) /* workaround */
 
+#define MimerGetStr(mimer_func, str, rc, ...)   \
+    rc = (mimer_func)(__VA_ARGS__, NULL, 0);    \
+    char str[(rc) + 1];                         \
+    rc = (mimer_func)(__VA_ARGS__, str, rc + 1) \
+
+#define pdo_mimer_open_cursor(stmt_handle, rc)                    \
+    rc = MIMER_SUCCESS;                                         \
+    if ((stmt_handle)->open_cursor) {                         \
+        (rc) = MimerCloseCursor((stmt_handle)->statement);    \
+    }                                                           \
+    if (MIMER_SUCCEEDED((rc))) {                                       \
+        (rc) = MimerOpenCursor((stmt_handle)->statement);     \
+        if (MIMER_SUCCEEDED((rc))) {                            \
+            (stmt_handle)->open_cursor = 1;                   \
+        }                                                       \
+    }
+
+#define pdo_mimer_close_cursor(stmt_handle, rc)                \
+    if ((stmt_handle)->open_cursor) {                      \
+        (rc) = MimerCloseCursor((stmt_handle)->statement); \
+        if (MIMER_SUCCEEDED((rc))) {                         \
+            (stmt_handle)->open_cursor = 0;                \
+        }                                                    \
+    }
+
 typedef int32_t MimerError;
 
 typedef struct mimer_error_info_t {
@@ -45,6 +70,8 @@ typedef struct pdo_mimer_stmt_t {
     pdo_mimer_handle *handle;
     MimerStatement statement;
     MimerErrorInfo error_info;
+    int32_t cursor_type;
+    int open_cursor:1;
 } pdo_mimer_stmt;
 
 /**
