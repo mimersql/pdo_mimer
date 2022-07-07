@@ -91,10 +91,6 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
     int32_t fetch_op_mode = MIMER_NEXT;
     MimerError return_code;
 
-    if (!MimerStatementHasResultSet(*mimer_statement)) {
-        return 0;
-    }
-
     /* map PDO fetch orientation to MimerFetchScroll operation mode */
     switch (ori) {
         case PDO_FETCH_ORI_NEXT:
