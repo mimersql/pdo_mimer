@@ -28,6 +28,22 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
 
 #define MimerStatementHasResultSet(statement) ((statement) != NULL && MimerColumnCount((statement)) > 0) /* workaround */
 
+/**
+ * @brief Macro function to get a string value since Mimer SQL's C API functions behave similarly
+ * @param mimer_func The Mimer API function to call, eg. <code>MimerGetString()</code>
+ * @param str The name of the resulting <code>char[]</code> variable
+ * @param rc A <code>MimerError</code> variable to store any possible errors
+ * @param args Any additional arguments that need to be sent to @p mimer_func
+ *
+ * @example From <code>mimer_stmt::pdo_mimer_describe_col()</code>:<br><br>
+ * @code
+ *  int mim_colno = colno + 1;
+ *  MimerError return_code;
+ *  MimerGetStr(MimerColumnName8, str_buf, return_code, stmt_handle->statement, mim_colno);
+ * @endcode
+ *
+ * @remark <code>char @p str[]</code> is allocated on the stack
+ */
 #define MimerGetStr(mimer_func, str, rc, ...)   \
     rc = (mimer_func)(__VA_ARGS__, NULL, 0);    \
     char str[(rc) + 1];                         \
