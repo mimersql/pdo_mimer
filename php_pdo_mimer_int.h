@@ -44,10 +44,12 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
  *
  * @remark <code>char @p str[]</code> is allocated on the stack
  */
-#define MimerGetStr(mimer_func, str, rc, ...)   \
-    rc = (mimer_func)(__VA_ARGS__, NULL, 0);    \
-    char str[(rc) + 1];                         \
-    rc = (mimer_func)(__VA_ARGS__, str, rc + 1) \
+#define MimerGetStr(mimer_func, str, rc, ...)        \
+    rc = (mimer_func)(__VA_ARGS__, NULL, 0);         \
+    char str[(rc) > 0 ? (rc) + 1 : 0];               \
+    if ((rc) > 0) {                                  \
+        rc = (mimer_func)(__VA_ARGS__, str, rc + 1); \
+    }
 
 typedef int32_t MimerError;
 
