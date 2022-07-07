@@ -195,6 +195,8 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
  * @param param The structure describing either a statement parameter or a bound column.
  * @param event_type The type of event to occur for this parameter.
  * @return 1 for success, 0 for failure.
+ * @remark This hook will be called for each bound parameter and bound column in the statement. 
+*           For ALLOC and FREE events, a single call will be made for each parameter or column
  * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">Implementing PDO</a>
  * @see <a href="https://www.php.net/manual/en/pdo.constants.php">PHP: Predefined Constants</a>
  */
