@@ -26,10 +26,11 @@
 
 /**
  * @brief A function to handle all PDO Mimer SQL errors.
- * If using a "custom" Mimer error, all error handling should be done beforehand. This function will simply
  * @param dbh A pointer to the PDO database handle object.
  * @param stmt A pointer to the PDO statement handle object.
  * @return Mimer SQL native error code
+ * @remark If using a "custom" Mimer error, all error handling should be done beforehand. This function simply
+ *      builds error information specific to the driver or statement handle.
  * @see https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/App_Return_Codes/App_Return_Codes.htm
  */
 int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line) {
@@ -79,15 +80,15 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
 
         error_info->mimer_error = return_code;
     }
-
+    
     strcpy(*pdo_error, MimerGetSQLState(error_info->mimer_error));
     error_info->error_msg = pestrdup(tmp_buf, dbh->is_persistent);
     efree(tmp_buf);
-
+    
     if (!dbh->methods) { /* error constructing PDO object */
         pdo_throw_exception(error_info->mimer_error, error_info->error_msg, pdo_error);
     }
-
+  
     return error_info->mimer_error;
 }
 
@@ -99,7 +100,6 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
  */
 static void mimer_handle_closer(pdo_dbh_t *dbh) {
     pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
-
     handle_err_dbh(MimerEndSession(&handle->session))
     if (handle->session != NULL) {
         handle_err_dbh(MimerEndSessionHard(&handle->session)); /* I wasn't asking */
@@ -200,7 +200,7 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
  */
 static bool mimer_handle_begin(pdo_dbh_t *dbh) {
     pdo_mimer_handle *handle = (pdo_mimer_handle *)dbh->driver_data;
-
+    
     return_on_err(MimerBeginTransaction(handle->session, handle->trans_option), false)
 
     return true;
@@ -396,6 +396,12 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     MimerError return_code = MIMER_LOGIN_FAILED;
     int num_data_src_opts;
 
+    /* Leave this guard here until we're ready to test persistent connections*/
+    if(dbh->is_persistent){
+        strcpy(dbh->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
+        pdo_throw_exception(MIMER_FEATURE_NOT_IMPLEMENTED,"Persistent connections not yet supported", &dbh->error_code);
+    }
+
     /**
      * @brief Macro function to get a DSN option's value
      * @param optname The name of the option to get the value from
@@ -439,12 +445,14 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
 
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     /* TODO: add session-persistence functionality */
+    
     return_code = MimerBeginSession8(optval(dbname), dbh->username, dbh->password, &handle->session);
-    if (MIMER_LOGIN_SUCCEEDED(return_code)) {
-        dbh->methods = &mimer_methods;
-    } else {
+
+    if (!MIMER_LOGIN_SUCCEEDED(return_code)) {
         pdo_mimer_error(dbh);
     }
+
+    dbh->methods = &mimer_methods;
 
     /* free up options given by user in dsn */
     for (int i = 0; i < num_data_src_opts; i++) {
@@ -452,7 +460,7 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
             efree(data_src_opts[i].optval);
         }
     }
-
+    
     return MIMER_LOGIN_SUCCEEDED(return_code);
 }
 
