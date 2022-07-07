@@ -46,6 +46,10 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
  * @brief Execute a prepared SQL statement.
  * @param stmt A pointer to the PDO statement handle object.
  * @return 1 for success, 0 for failure.
+ * @remark Driver is responsible for setting the column_count field in stmt for result set statements
+*  @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.pdo-stmt-t">
+ *          PDO Driver How-To: pdo_stmt_t definition
+ *      </a>
  */
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
