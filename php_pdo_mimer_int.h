@@ -33,24 +33,24 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
     char str[(rc) + 1];                         \
     rc = (mimer_func)(__VA_ARGS__, str, rc + 1) \
 
-#define pdo_mimer_open_cursor(stmt_handle, rc)                    \
-    rc = MIMER_SUCCESS;                                         \
-    if ((stmt_handle)->open_cursor) {                         \
-        (rc) = MimerCloseCursor((stmt_handle)->statement);    \
-    }                                                           \
-    if (MIMER_SUCCEEDED((rc))) {                                       \
-        (rc) = MimerOpenCursor((stmt_handle)->statement);     \
-        if (MIMER_SUCCEEDED((rc))) {                            \
-            (stmt_handle)->open_cursor = 1;                   \
-        }                                                       \
-    }
-
-#define pdo_mimer_close_cursor(stmt_handle, rc)                \
+#define pdo_mimer_open_cursor(stmt_handle, rc)             \
+    rc = MIMER_SUCCESS;                                    \
     if ((stmt_handle)->open_cursor) {                      \
         (rc) = MimerCloseCursor((stmt_handle)->statement); \
-        if (MIMER_SUCCEEDED((rc))) {                         \
+    }                                                      \
+    if (MIMER_SUCCEEDED((rc))) {                           \
+        (rc) = MimerOpenCursor((stmt_handle)->statement);  \
+        if (MIMER_SUCCEEDED((rc))) {                       \
+            (stmt_handle)->open_cursor = 1;                \
+        }                                                  \
+    }
+
+#define pdo_mimer_close_cursor(stmt_handle, rc)            \
+    if ((stmt_handle)->open_cursor) {                      \
+        (rc) = MimerCloseCursor((stmt_handle)->statement); \
+        if (MIMER_SUCCEEDED((rc))) {                       \
             (stmt_handle)->open_cursor = 0;                \
-        }                                                    \
+        }                                                  \
     }
 
 typedef int32_t MimerError;
