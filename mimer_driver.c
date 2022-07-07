@@ -39,7 +39,6 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     MimerErrorInfo *error_info;
     pdo_error_type *pdo_error;
     MimerError return_code;
-    char* tmp_buf;
 
     /* handle either statement or session error */
     if (stmt) {
@@ -60,35 +59,34 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     }
 
     /* free any previous error message */
-    if (error_info->error_msg != NULL) {
-        pefree(error_info->error_msg, dbh->is_persistent);
-        error_info->error_msg = NULL;
-    }
+    error_info->error_msg == NULL ?: pefree(error_info->error_msg, dbh->is_persistent);
 
     /* handle errors and build error info */
-    return_code = MimerGetError8(mimer_handle, &error_info->mimer_error, NULL, 0);
+    MimerGetStr(MimerGetError8, error_msg, return_code, mimer_handle, &error_info->mimer_error);
     if (return_code == MIMER_NO_ERROR) {
-        tmp_buf = estrdup("Last operation completed successfully.");
+        error_info->error_msg = pestrdup("Last operation completed successfully.", dbh->is_persistent);
     } else if (MIMER_SUCCEEDED(return_code)) { /* get error msg */
-        size_t num_chars = return_code + 1; /* MimerGetError returns number of characters without null-termination */
-        tmp_buf = ecalloc(num_chars, sizeof(char));
-        MimerGetError8(mimer_handle, &error_info->mimer_error, tmp_buf, num_chars);
+        error_info->error_msg = pestrdup(error_msg, dbh->is_persistent);
     } else { /* error getting error message */
+        char *tmp_buf;
         spprintf(&tmp_buf, 0,
                  "%s:%d Error retrieving error information. Return code(%d), Mimer error(%d)",
                  file, line, return_code, error_info->mimer_error);
 
-        error_info->mimer_error = return_code;
+        *error_info = (MimerErrorInfo) {
+            .mimer_error = return_code,
+            .error_msg = pestrdup(tmp_buf, dbh->is_persistent)
+        };
+
+        efree(tmp_buf);
     }
-    
+
     strcpy(*pdo_error, MimerGetSQLState(error_info->mimer_error));
-    error_info->error_msg = pestrdup(tmp_buf, dbh->is_persistent);
-    efree(tmp_buf);
-    
+
     if (!dbh->methods) { /* error constructing PDO object */
         pdo_throw_exception(error_info->mimer_error, error_info->error_msg, pdo_error);
     }
-  
+
     return error_info->mimer_error;
 }
 
