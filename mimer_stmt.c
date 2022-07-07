@@ -153,6 +153,16 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
     return 1;
 }
 
+/**
+ * @brief This function will be called by PDO to retrieve data from the specified column.
+ * 
+ * @param stmt Pointer to the statement structure initialized by mimer_handle_preparer.
+ * @param colno The column number to be queried.
+ * @param result Pointer to the retrieved data.
+ * @param type Parameter data type.
+ * @return 1 for success or 0 in the event of failure.
+ * @remark PDO uses 0-index for columns, MimerAPI starts at 1, needs offset.
+ */
 static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerError return_code;
