@@ -1,18 +1,20 @@
 /*
    +----------------------------------------------------------------------+
-   | Copyright (c) The PHP Group  |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
-   | that is bundled with this package in the file LICENSE, and is|
-   | available through the world-wide-web at the following url:   |
-   | https://www.php.net/license/3_01.txt |
+   | that is bundled with this package in the file LICENSE, and is        |
+   | available through the world-wide-web at the following url:           |
+   | https://www.php.net/license/3_01.txt                                 |
    | If you did not receive a copy of the PHP license and are unable to   |
-   | obtain it through the world-wide-web, please send a note to  |
-   | license@php.net so we can mail you a copy immediately.       |
+   | obtain it through the world-wide-web, please send a note to          |
+   | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Author: Alexander Hedberg <alexander.hedberg@mimer.com>      |
+   | Authors: Alexander Hedberg <alexander.hedberg@mimer.com>             |
+   |          Ludwig von Feilitzen <ludwig.vonfeilitzen@mimer.com>        |
    +----------------------------------------------------------------------+
 */
+
 #ifndef PHP_SRC_PHP_PDO_MIMER_ERRORS_H
 #define PHP_SRC_PHP_PDO_MIMER_ERRORS_H
 

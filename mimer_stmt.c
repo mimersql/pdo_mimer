@@ -10,7 +10,8 @@
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Author: Alexander Hedberg <alexander.hedberg@mimer.com>              |
+   | Authors: Alexander Hedberg <alexander.hedberg@mimer.com>             |
+   |          Ludwig von Feilitzen <ludwig.vonfeilitzen@mimer.com>        |
    +----------------------------------------------------------------------+
 */
 
