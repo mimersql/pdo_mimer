@@ -395,13 +395,6 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
         pdo_throw_exception(MIMER_FEATURE_NOT_IMPLEMENTED,"Persistent connections not yet supported", &dbh->error_code);
     }
 
-    /**
-     * @brief Macro function to get a DSN option's value
-     * @param optname The name of the option to get the value from
-     * @return A string or NULL
-     */
-#   define optval(optname) data_src_opts[optname##_opt].optval
-
     enum { dbname_opt, user_opt, password_opt}; /* must match format `optname_opt` from data_src_opts */
     data_src_opt data_src_opts[] = {
             /* if the user does not give database name, NULL will trigger default database connection */

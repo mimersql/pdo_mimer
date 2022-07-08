@@ -27,8 +27,6 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
 #define QUOTE(x) #x
 #define QUOTE_EX(x) QUOTE(x)
 
-#define MimerStatementHasResultSet(statement) ((statement) != NULL && MimerColumnCount((statement)) > 0) /* workaround */
-
 /**
  * @brief Macro function to get a string value since Mimer SQL's C API functions behave similarly
  * @param mimer_func The Mimer API function to call, eg. <code>MimerGetString()</code>
@@ -72,18 +70,23 @@ typedef struct pdo_mimer_stmt_t {
     int32_t cursor_type;
 } pdo_mimer_stmt;
 
-/**
- * @brief This data structure represents PDO's Data Source Name
- * @remark Each char pointer should be a null-terminated string.
- * @code char* optval; // initalize with a default value @endcode
- * @sa <a href="https://www.php.net/manual/en/pdo.construct.php">PDO Construct</a>
- */
 typedef struct pdo_data_src_parser data_src_opt;
 
 /**
- * Define custom driver attributes here
+ * @brief Macro function to get a DSN option's value
+ * @param optname The name of the option to get the value from
+ * @return A string or NULL
  */
-enum {
+#define optval(optname) data_src_opts[optname##_opt].optval
+
+/**
+ * @brief Checks if the statement will yield a result set
+ * @param statement A handle returned by <code>MimerBeginStatement[C|8]()</code>, identifying a prepared statement
+ */
+#define MimerStatementHasResultSet(statement) ((statement) != NULL && MimerColumnCount((statement)) > 0) /* workaround */
+
+
+enum { /* Define custom driver attributes here */
     MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC
 };
 

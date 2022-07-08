@@ -30,9 +30,7 @@
 
 #define REGISTER_ATTR(x) REGISTER_PDO_CLASS_CONST_LONG(#x, (x))
 
-/* TODO: check what more needs to be done here */
-PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */
-{
+PHP_MINIT_FUNCTION(pdo_mimer) {
     if (FAILURE == php_pdo_register_driver(&pdo_mimer_driver)) {
         return FAILURE;
     }
@@ -45,26 +43,20 @@ PHP_MINIT_FUNCTION(pdo_mimer) /* {{{ */
 
     return SUCCESS;
 }
-/* }}} */
 
 /* TODO: check what more needs to be done here */
-PHP_MSHUTDOWN_FUNCTION(pdo_mimer) /* {{{ */
-{
+PHP_MSHUTDOWN_FUNCTION(pdo_mimer) {
     php_pdo_unregister_driver(&pdo_mimer_driver);
 
     return SUCCESS;
 }
-/* }}} */
 
-/* {{{ PHP_MINFO_FUNCTION */
-PHP_MINFO_FUNCTION(pdo_mimer)
-{
+PHP_MINFO_FUNCTION(pdo_mimer) {
     php_info_print_table_start();
     php_info_print_table_header(2, "PDO Driver for Mimer SQL", "enabled");
     php_info_print_table_row(2, "Mimer API Version", MimerAPIVersion());
     php_info_print_table_end();
 }
-/* }}} */
 
 /* TODO: check what this does and if is needed */
 #ifdef COMPILE_DL_PDO_MIMER
@@ -74,7 +66,6 @@ ZEND_TSRMLS_CACHE_DEFINE()
 ZEND_GET_MODULE(pdo_mimer)
 #endif
 
-/* TODO: check what this does and if is needed */
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() \
@@ -82,14 +73,11 @@ ZEND_GET_MODULE(pdo_mimer)
 	ZEND_PARSE_PARAMETERS_END()
 #endif
 
-/* {{{ pdo_firebird_deps */
 static const zend_module_dep pdo_mimer_deps[] = {
         ZEND_MOD_REQUIRED("pdo")
         ZEND_MOD_END
 };
-/* }}} */
 
-/* {{{ pdo_mimer_module_entry */
 zend_module_entry pdo_mimer_module_entry = {
         STANDARD_MODULE_HEADER_EX,
         NULL,
@@ -104,4 +92,3 @@ zend_module_entry pdo_mimer_module_entry = {
         PHP_PDO_MIMER_VERSION,
         STANDARD_MODULE_PROPERTIES
 };
-/* }}} */
