@@ -212,12 +212,8 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
     }
 
     if (param->paramno >= INT16_MAX) {
-        /* TODO: custom error */
-        strcpy(stmt->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
-        pdo_throw_exception(MIMER_VALUE_TOO_LARGE,
-            "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
-                            &stmt->error_code);
-
+        mimer_throw_except(&stmt_handle->error_info, "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
+                MIMER_VALUE_TOO_LARGE, SQLSTATE_FEATURE_NOT_SUPPORTED, stmt->dbh->is_persistent, stmt->error_code)
         return 0;
     }
 
