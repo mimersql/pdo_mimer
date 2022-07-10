@@ -99,9 +99,11 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
  */
 static void mimer_handle_closer(pdo_dbh_t *dbh) {
     pdo_mimer_handle *handle = (pdo_mimer_handle*)dbh->driver_data;
+
     handle_err_dbh(MimerEndSession(&handle->session))
     if (handle->session != NULL) {
         handle_err_dbh(MimerEndSessionHard(&handle->session)); /* I wasn't asking */
+        /* if seg faulting here, probably forgot MimerEndStatement() somewhere */
     }
 
     if (handle->error_info.error_msg != NULL) {
@@ -167,12 +169,12 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     zend_long num_affected_rows = 0;
 
     if (MIMER_SUCCEEDED(return_code = MimerBeginStatement8(handle->session, ZSTR_VAL(sql), MIMER_FORWARD_ONLY, &statement))) {
+        /* non-DDL statements without result sets execute successfully here with MimerExecute() */
         if (!MIMER_SUCCEEDED(num_affected_rows = MimerExecute(statement))) { /* probably a select query */
             MimerError mimer_error;
             MimerGetStr(MimerGetError8, error_msg, return_code, statement, &mimer_error)
             handle_custom_err(&handle->error_info, error_msg, mimer_error, SQLSTATE_GENERAL_ERROR, dbh->is_persistent,
                               dbh->error_code)
-            return -1;
         }
 
         return_code = MimerEndStatement(&statement);
