@@ -186,45 +186,79 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     return 1;
 }
 
-/**
- * @brief Handle bound parameters and columns
- * @param stmt A pointer to the PDO statement handle object.
- * @param param The structure describing either a statement parameter or a bound column.
- * @param event_type The type of event to occur for this parameter.
- * @return 1 for success, 0 for failure.
- * @remark This hook will be called for each bound parameter and bound column in the statement. 
-*           For ALLOC and FREE events, a single call will be made for each parameter or column
- * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">Implementing PDO</a>
- * @see <a href="https://www.php.net/manual/en/pdo.constants.php">PHP: Predefined Constants</a>
- */
-static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
+static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerStatement *statement = &stmt_handle->statement;
+    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
+    MimerLob lob_handle;
     MimerError return_code;
-    zval *parameter;
+    int16_t paramno = (int16_t)param->paramno + 1;
 
-    if (stmt_handle->statement == NULL || !param->is_param) { /* nothing to do */
-        return 1;
+    if (Z_TYPE_P(parameter) == IS_RESOURCE) {
+        php_stream *stm = NULL;
+        php_stream_from_zval_no_verify(stm, parameter);
+        if (stm) {
+            zend_string *mem = php_stream_copy_to_mem(stm, PHP_STREAM_COPY_ALL, 0);
+            char *str_ptr = ZSTR_VAL(mem);
+            size_t str_len = ZSTR_LEN(mem);
+            
+            zval_ptr_dtor(parameter);
+            
+            if(!mem) {return MimerSetLob(*statement, paramno, 0, NULL);}
+
+            handle_err(return_code = MimerSetLob(*statement, paramno, ZSTR_LEN(mem), &lob_handle), efree(mem), return return_code)
+            handle_err(return_code = MimerParameterType(*statement, paramno), efree(mem), return return_code)
+
+            /** TODO: Currently there's no handling of encoding, the assumption is that the stream of characters
+             * is encoded as UTF-8 chars. 
+             * TODO: The MimerSet(Clob|Nclob)Data functions want num. of characters
+             * but are currently getting number of bytes, i.e. an upper limit, as there might be >1 bytes per char.
+             * TODO: Read the data in chunks instead of everything at once.
+            */
+            switch(return_code){
+                case MIMER_NATIVE_BLOB:
+                    handle_err(return_code = MimerSetBlobData(&lob_handle, str_ptr, str_len), efree(mem), return return_code)
+                    break;
+                case MIMER_NATIVE_CLOB:
+                    handle_err(return_code = MimerSetClobData8(&lob_handle, str_ptr, str_len), efree(mem), return return_code)
+                    break;
+                case MIMER_NATIVE_NCLOB:
+                    handle_err(return_code = MimerSetNclobData8(&lob_handle, str_ptr, str_len), efree(mem), return return_code)
+                    break;
+                default:
+                    /** TODO: More precise error info */
+                    efree(mem);
+                    mimer_throw_except(&stmt_handle->error_info, "Expected BLOB, CLOB or NCLOB column type", \
+                        MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) \
+            }
+            efree(mem);
+            
+        } else {
+        /** TODO: More precise error info */
+        mimer_throw_except(&stmt_handle->error_info, "Expected a stream resource for LOB parameter", \
+            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
+        }
+    } else {
+        /** TODO: More precise error info */
+        mimer_throw_except(&stmt_handle->error_info, "Expected a resource for LOB parameter", \
+            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
     }
+    return return_code;
+}
 
-    if (event_type != PDO_PARAM_EVT_EXEC_PRE) {
-        return 1;
-    }
-
-    if (param->paramno >= INT16_MAX) {
-        /* TODO: custom error */
-        strcpy(stmt->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
-        pdo_throw_exception(MIMER_VALUE_TOO_LARGE,
-            "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
-                            &stmt->error_code);
-
-        return 0;
-    }
-
+/**
+ * @brief Prepares the statement with parameter data. Called once for each parameter immediately before calling SKEL_stmt_execute.
+ * 
+ * @param stmt A pointer to the PDO statement handle object.
+ * @param param The structure describing either a statement parameter or a bound column.
+ * @return Mimer error code.
+ */
+static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
+    MimerError return_code;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    MimerStatement *statement = &stmt_handle->statement;
     int16_t paramno = (int16_t)param->paramno + 1; /* parameter number is 0-indexed, while Mimer is not */
-
-    /* unwrap reference if necessary */
-    parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
+    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
 
     switch (PDO_PARAM_TYPE(param->param_type)) {
         case PDO_PARAM_NULL:
@@ -243,27 +277,77 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
             return_code = MimerSetString8(*statement, paramno, Z_STRVAL_P(parameter));
             break;
 
+        case PDO_PARAM_LOB:
+            return_code = pdo_mimer_set_lob_data(stmt, param);
+            break;
+            
         /* unimplemented */
 #       define UNSUPPORTED(pdo_param) \
         case pdo_param:                \
-            handle_custom_err(&stmt_handle->error_info, #pdo_param " support is not yet implemented", \
+            mimer_throw_except(&stmt_handle->error_info, #pdo_param " support is not yet implemented", \
                 MIMER_FEATURE_NOT_IMPLEMENTED, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, stmt->dbh->is_persistent, stmt->error_code) \
-            return 0;
-
-            UNSUPPORTED(PDO_PARAM_LOB)
-            UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
-            UNSUPPORTED(PDO_PARAM_STR_NATL)
-            UNSUPPORTED(PDO_PARAM_STR_CHAR)
-            UNSUPPORTED(PDO_PARAM_STMT)
+            break; 
+            
+        UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
+        UNSUPPORTED(PDO_PARAM_STR_NATL)
+        UNSUPPORTED(PDO_PARAM_STR_CHAR)
+        UNSUPPORTED(PDO_PARAM_STMT)
         default:
-            return 0;
-
+            mimer_throw_except(&stmt_handle->error_info, "Unexpected parameter type", \
+                MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) \
     }
 
-    return_on_err_stmt(return_code, 0)
+    return return_code;
+}
 
+
+/**
+ * @brief Handle bound parameters and columns
+ * @param stmt A pointer to the PDO statement handle object.
+ * @param param The structure describing either a statement parameter or a bound column.
+ * @param event_type The type of event to occur for this parameter.
+ * @return 1 for success, 0 for failure.
+ * @remark This hook will be called for each bound parameter and bound column in the statement. 
+*           For ALLOC and FREE events, a single call will be made for each parameter or column
+ * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">Implementing PDO</a>
+ * @see <a href="https://www.php.net/manual/en/pdo.constants.php">PHP: Predefined Constants</a>
+ */
+static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    MimerError return_code;
+
+    if (stmt_handle->statement == NULL || !param->is_param) { /* nothing to do */
+        return 1;
+    }
+    
+    if (param->paramno >= INT16_MAX) {
+        /* TODO: custom error */
+        strcpy(stmt->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
+        pdo_throw_exception(MIMER_VALUE_TOO_LARGE,
+            "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
+                            &stmt->error_code);
+
+        return 0;
+    }
+    
+    switch(event_type){
+        case PDO_PARAM_EVT_EXEC_PRE:
+            return_code = pdo_mimer_pre_execute(stmt, param);
+            break;
+        case PDO_PARAM_EVT_NORMALIZE:
+        case PDO_PARAM_EVT_ALLOC:
+        case PDO_PARAM_EVT_FREE:
+        case PDO_PARAM_EVT_EXEC_POST:
+        case PDO_PARAM_EVT_FETCH_PRE:
+        case PDO_PARAM_EVT_FETCH_POST:
+        default:
+            return 1;
+    }
+    
+    return_on_err_stmt(return_code, 0)
     return 1;
 }
+
 
 static int pdo_mimer_set_attr(pdo_stmt_t *stmt, zend_long attr, zval *val) {
     return 0;
