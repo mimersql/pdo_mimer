@@ -186,6 +186,13 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     return 1;
 }
 
+/**
+ * @brief Allocates space in DB and writes the LOB data from a streamable resource.
+ * 
+ * @param stmt Pointer to the statement structure initialized by mimer_handle_preparer.
+ * @param param The structure describing a LOB statement parameter.
+ * @return Mimer status code.
+ */
 static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerStatement *statement = &stmt_handle->statement;
@@ -247,11 +254,11 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
 }
 
 /**
- * @brief Prepares the statement with parameter data. Called once for each parameter immediately before calling SKEL_stmt_execute.
+ * @brief Called once for each parameter immediately before calling mimer_stmt_execute.
  * 
  * @param stmt A pointer to the PDO statement handle object.
  * @param param The structure describing either a statement parameter or a bound column.
- * @return Mimer error code.
+ * @return Mimer status code.
  */
 static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
     MimerError return_code;
