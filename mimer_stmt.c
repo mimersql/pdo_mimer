@@ -164,15 +164,19 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
 static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     int mim_colno = colno + 1; 
-    MimerError return_code = MimerColumnType(stmt_handle->statement, mim_colno);
-    return_on_err_stmt(return_code, 0)
+    MimerError return_code;
+
+    return_on_err_stmt(return_code = MimerColumnType(stmt_handle->statement, mim_colno), 0)
     
-    /** TODO: Rewrite the test macros to include types that are missing from the MimerIsXX() checks */
-    if (MimerIsInt64(return_code) || return_code == MIMER_NATIVE_INTEGER_NULLABLE || return_code == MIMER_NATIVE_INTEGER){
+    if (MimerIsInt64(return_code)){
         int64_t res;
         return_on_err_stmt(MimerGetInt64(stmt_handle->statement, mim_colno, &res), 0)
         ZVAL_LONG(result, res);
-    }  else if (MimerIsString(return_code)){
+    } else if(MimerIsInt32(return_code)) {
+        int32_t res;
+        return_on_err_stmt(MimerGetInt32(stmt_handle->statement, mim_colno, &res), 0)
+        ZVAL_LONG(result, res);
+    } else if (MimerIsString(return_code)){
         MimerGetStr(MimerGetString8, str_buf, return_code, stmt_handle->statement, mim_colno);
         return_on_err_stmt(return_code, 0)
         ZVAL_STRING(result, str_buf);
@@ -215,7 +219,7 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
 
             handle_err(return_code = MimerSetLob(*statement, paramno, ZSTR_LEN(mem), &lob_handle), efree(mem), return return_code)
             handle_err(return_code = MimerParameterType(*statement, paramno), efree(mem), return return_code)
-
+            
             /** TODO: Currently there's no handling of encoding, the assumption is that the stream of characters
              * is encoded as UTF-8 chars. 
              * TODO: The MimerSet(Clob|Nclob)Data functions want num. of characters
