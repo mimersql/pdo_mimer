@@ -17,7 +17,7 @@ try {
 
     $tstnum = 0x61626364; //0x61-64 = a-d ASCII
     $bin_str = pack('i', $tstnum);
-    $fp = fopen("./tstfile_blob", "w+");
+    $fp = tmpfile();
     fwrite($fp, $bin_str);
     rewind($fp);
 
