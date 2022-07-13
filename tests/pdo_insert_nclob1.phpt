@@ -16,7 +16,7 @@ try {
     $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY, nclobdata NCLOB(20))');
 
     $tsttext = array(0xc3, 0x85, 0xc3, 0x84, 0xc3, 0x96); // ="ÅÄÖ" in UTF8
-    $fp = fopen("./tstfile_clob", "wb+");
+    $fp = tmpfile();
     foreach($tsttext as $chr){
         fwrite($fp, pack('C', $chr));
     }
