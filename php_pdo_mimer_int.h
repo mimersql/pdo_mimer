@@ -65,9 +65,9 @@ typedef struct pdo_mimer_handle_t {
 
 typedef struct pdo_mimer_stmt_t {
     pdo_mimer_handle *handle;
-    MimerStatement statement;
-    MimerErrorInfo error_info;
-    int32_t cursor_type;
+    MimerStatement statement; 
+    MimerErrorInfo error_info; 
+    int32_t cursor_type; 
 } pdo_mimer_stmt;
 
 typedef struct pdo_data_src_parser data_src_opt;
@@ -101,5 +101,7 @@ typedef struct pdo_mimer_lob_streamdata_t {
 
 php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lobtype);
 extern const php_stream_ops pdo_mimer_lob_stream_ops;
+
+#define MIMER_LOB_INSERT_CHUNKSIZE 8192
 
 #endif /* PHP_PDO_MIMER_INT_H */
