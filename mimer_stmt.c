@@ -195,69 +195,83 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
 }
 
 /**
- * @brief Allocates space in DB and writes the LOB data from a streamable resource.
+ * @brief Writes the LOB data from a streamable resource.
  * 
- * @param stmt Pointer to the statement structure initialized by mimer_handle_preparer.
+ * @param stmt Pointer to a prepared statement.
  * @param param The structure describing a LOB statement parameter.
  * @return Mimer status code.
+ * 
+ * TODO: Currently there's no handling of encoding, the assumption is that the stream of characters
+ *       is encoded as UTF-8 chars. 
+ * TODO: The MimerSet(Clob|Nclob)Data functions want num. of characters
+ *       but are currently getting number of bytes, i.e. an upper limit, as there might be >1 bytes per char.
  */
 static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerStatement *statement = &stmt_handle->statement;
-    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
-    MimerLob lob_handle;
+    zval *parameter = &param->parameter;
+    int16_t mim_paramno = param->paramno + 1;
     MimerError return_code;
-    int16_t paramno = (int16_t)param->paramno + 1;
+    MimerLob lob_handle;
+    int32_t lob_type;
+    size_t bytes_read = 0;
+    zend_off_t lobsize = 0;
+    php_stream *stm = NULL;
+    size_t chunk_size = MIMER_LOB_INSERT_CHUNKSIZE; 
+    char lob_buf[MIMER_LOB_INSERT_CHUNKSIZE] = { 0 };
 
-    if (Z_TYPE_P(parameter) == IS_RESOURCE) {
-        php_stream *stm = NULL;
-        php_stream_from_zval_no_verify(stm, parameter);
-        if (stm) {
-            zend_string *mem = php_stream_copy_to_mem(stm, PHP_STREAM_COPY_ALL, 0);
-            char *str_ptr = ZSTR_VAL(mem);
-            size_t str_len = ZSTR_LEN(mem);
-            
-            zval_ptr_dtor(parameter);
-            
-            if(!mem) {return MimerSetLob(*statement, paramno, 0, NULL);}
-
-            handle_err(return_code = MimerSetLob(*statement, paramno, ZSTR_LEN(mem), &lob_handle), efree(mem), return return_code)
-            handle_err(return_code = MimerParameterType(*statement, paramno), efree(mem), return return_code)
-            
-            /** TODO: Currently there's no handling of encoding, the assumption is that the stream of characters
-             * is encoded as UTF-8 chars. 
-             * TODO: The MimerSet(Clob|Nclob)Data functions want num. of characters
-             * but are currently getting number of bytes, i.e. an upper limit, as there might be >1 bytes per char.
-             * TODO: Read the data in chunks instead of everything at once.
-            */
-            switch(return_code){
-                case MIMER_NATIVE_BLOB:
-                    handle_err(return_code = MimerSetBlobData(&lob_handle, str_ptr, str_len), efree(mem), return return_code)
-                    break;
-                case MIMER_NATIVE_CLOB:
-                    handle_err(return_code = MimerSetClobData8(&lob_handle, str_ptr, str_len), efree(mem), return return_code)
-                    break;
-                case MIMER_NATIVE_NCLOB:
-                    handle_err(return_code = MimerSetNclobData8(&lob_handle, str_ptr, str_len), efree(mem), return return_code)
-                    break;
-                default:
-                    /** TODO: More precise error info */
-                    efree(mem);
-                    mimer_throw_except(&stmt_handle->error_info, "Expected BLOB, CLOB or NCLOB column type", \
-                        MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) \
-            }
-            efree(mem);
-            
-        } else {
-        /** TODO: More precise error info */
-        mimer_throw_except(&stmt_handle->error_info, "Expected a stream resource for LOB parameter", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
-        }
-    } else {
-        /** TODO: More precise error info */
+    /** make a PHP stream from the zval
+        TODO: More precise error info */ 
+    if (Z_TYPE_P(parameter) != IS_RESOURCE){
+        
         mimer_throw_except(&stmt_handle->error_info, "Expected a resource for LOB parameter", \
             MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
     }
+    php_stream_from_zval_no_verify(stm, parameter);
+    if (!stm){
+        mimer_throw_except(&stmt_handle->error_info, "Expected a stream resource for LOB parameter", \
+            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
+    }
+    zval_ptr_dtor(parameter);
+
+    /** get total LOB size */
+    php_stream_seek(stm, 0, SEEK_END);
+    lobsize = php_stream_tell(stm);
+    php_stream_rewind(stm);
+    if (lobsize == 0){
+        return MimerSetLob(*statement, mim_paramno, 0, NULL);
+    }
+
+    /** make space in DB */
+    return_on_err_stmt(return_code = MimerSetLob(*statement, mim_paramno, lobsize, &lob_handle), return_code)
+
+    /** DB column type decides how we interpret and insert data */
+    return_on_err_stmt(return_code = MimerParameterType(*statement, mim_paramno), return_code)
+    lob_type = return_code;
+
+    /** load the data like stream -> buffer -> DB, in chunks */
+    do {
+        chunk_size = (lobsize - bytes_read) < chunk_size ? (lobsize - bytes_read) : chunk_size;
+        bytes_read += php_stream_read(stm, lob_buf, chunk_size);
+        
+        switch(lob_type){
+            case MIMER_NATIVE_BLOB:
+                return_on_err_stmt(return_code = MimerSetBlobData(&lob_handle, lob_buf, chunk_size), return_code)
+                break;
+            case MIMER_NATIVE_CLOB:
+                return_on_err_stmt(return_code = MimerSetClobData8(&lob_handle, lob_buf, chunk_size), return_code)
+                break;
+            case MIMER_NATIVE_NCLOB:
+                return_on_err_stmt(return_code = MimerSetNclobData8(&lob_handle, lob_buf, chunk_size), return_code)
+                break;
+            default:
+                /** TODO: More precise error info */
+                mimer_throw_except(&stmt_handle->error_info, "Expected BLOB, CLOB or NCLOB column type", \
+                    MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) \
+        }
+
+    } while(bytes_read < lobsize);
+
     return return_code;
 }
 
