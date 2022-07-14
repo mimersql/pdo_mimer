@@ -172,7 +172,7 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         int64_t res;
         return_on_err_stmt(MimerGetInt64(stmt_handle->statement, mim_colno, &res), 0)
         ZVAL_LONG(result, res);
-    } else if(MimerIsInt32(return_code)) {
+    } else if (MimerIsInt32(return_code)) {
         int32_t res;
         return_on_err_stmt(MimerGetInt32(stmt_handle->statement, mim_colno, &res), 0)
         ZVAL_LONG(result, res);
@@ -180,6 +180,10 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         MimerGetStr(MimerGetString8, str_buf, return_code, stmt_handle->statement, mim_colno);
         return_on_err_stmt(return_code, 0)
         ZVAL_STRING(result, str_buf);
+    } else if (MimerIsBlob(return_code)) {
+        php_stream *stm;
+        stm = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
+        php_stream_to_zval(stm, result);
     }
 
     else {

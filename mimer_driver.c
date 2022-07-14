@@ -24,6 +24,117 @@
 #include "php_pdo_mimer_int.h"
 #include "php_pdo_mimer_errors.h"
 
+/**
+ * @brief Mimer PDO specific implementation of PHP streams' write. 
+ * 
+ * @return -1 at failure, otherwise number of bytes written 
+ * @remark TODO: See if this can be adapted for use with LOB input
+ * @see https://github.com/php/php-src/blob/master/docs/streams.md
+ */
+static ssize_t mimer_lob_write(php_stream *stream, const char *buf, size_t count)
+{
+    return 0;
+}
+
+/**
+ * @brief Mimer PDO specific implementation of PHP streams' read. 
+ * 
+ * @return -1 at failure, otherwise number of bytes read 
+ * @see https://github.com/php/php-src/blob/master/docs/streams.md
+ */
+static ssize_t mimer_lob_read(php_stream *stream, char *buf, size_t count)
+{
+	pdo_mimer_lob_streamdata *strm_data = (pdo_mimer_lob_streamdata*)stream->abstract;
+    ssize_t rc;
+    switch(strm_data->lob_type){
+        case MIMER_BLOB:
+            if (strm_data->eof)
+                return 0;
+
+            rc = MimerGetBlobData(&strm_data->lob_handle, buf, count);
+            if (MIMER_SUCCEEDED(rc)) { 
+                return ((strm_data->eof = (rc <= count)) ? rc : count);
+            }
+            return -1;
+            
+        case MIMER_CLOB:
+        case MIMER_NCLOB:
+        default:
+            return -1;
+    }
+}
+
+/**
+ * @brief Mimer PDO specific implementation of PHP streams' close. 
+ * 
+ * @remark TODO: Find out if return value matters 
+ * @see https://github.com/php/php-src/blob/master/docs/streams.md
+ */
+static int mimer_lob_close(php_stream *stream, int close_handle)
+{
+    pdo_mimer_lob_streamdata *self = (pdo_mimer_lob_streamdata*)stream->abstract;
+    if (close_handle){
+        efree(self);
+    }
+	return 0;
+}
+
+/**
+ * @brief Mimer PDO specific implementation of PHP streams' flush. 
+ * 
+ * @remark Currently does nothing but is mandatory to define for 
+ *          own php_stream implementations.  
+ * @see https://github.com/php/php-src/blob/master/docs/streams.md
+ */
+static int mimer_lob_flush(php_stream *stream)
+{
+	return 0;
+}
+
+/**
+ * @brief Collection of function pointers defining the Mimer PDO
+ * specific PHP streams implementation.  
+ * 
+ * @see https://github.com/php/php-src/blob/master/docs/streams.md
+ */
+const php_stream_ops pdo_mimer_lob_stream_ops = {
+	mimer_lob_write,
+	mimer_lob_read,
+	mimer_lob_close,
+	mimer_lob_flush,
+	"pdo_mimer lob stream",
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+ 
+ /**
+  * @brief Creates a PHP stream which represents a connection to a LOB in DB.
+  * 
+  * @param stmt A pointer to the PDO statement handle object.
+  * @param colno Index of LOB column in resultset (starting at 1) 
+  * @param lobtype MIMER_BLOB | MIMER_CLOB | MIMER_NCLOB
+  * @return Pointer to PHP stream if successful, null otherwise
+  */
+php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lobtype)
+{
+    php_stream *stm;
+    size_t lob_size;
+    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    pdo_mimer_lob_streamdata *strm_data = emalloc(sizeof(*strm_data));
+
+    return_on_err_stmt(MimerGetLob(stmt_handle->statement, colno, &lob_size, &strm_data->lob_handle), NULL)
+    strm_data->lob_type = lobtype;
+    stm = php_stream_alloc(&pdo_mimer_lob_stream_ops, strm_data, stmt->dbh->is_persistent, "r+b");
+
+	if (stm) {
+		return stm;
+	}
+
+	efree(strm_data);
+	return NULL;
+}
 
 /**
  * @brief A function to handle all PDO Mimer SQL errors.

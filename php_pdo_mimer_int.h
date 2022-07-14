@@ -90,4 +90,16 @@ enum { /* Define custom driver attributes here */
     MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC
 };
 
+/**
+ * @brief The driver specific data needed in Mimer LOB streams.
+ */
+typedef struct pdo_mimer_lob_streamdata_t {
+	MimerLob lob_handle;
+    int32_t lob_type;
+    char eof;
+} pdo_mimer_lob_streamdata;
+
+php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lobtype);
+extern const php_stream_ops pdo_mimer_lob_stream_ops;
+
 #endif /* PHP_PDO_MIMER_INT_H */
