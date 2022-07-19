@@ -39,5 +39,3 @@ tests/**/*.sh
 tests/**/*.db
 tests/**/*.mem
 tmp-php.ini
-*.o
-*.dep
