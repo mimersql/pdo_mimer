@@ -207,10 +207,6 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
         return 1;
     }
 
-    if (event_type != PDO_PARAM_EVT_EXEC_PRE) {
-        return 1;
-    }
-
     if (param->paramno >= INT16_MAX) {
         mimer_throw_except(&stmt_handle->error_info, "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
                 MIMER_VALUE_TOO_LARGE, SQLSTATE_FEATURE_NOT_SUPPORTED, stmt->dbh->is_persistent, stmt->error_code)
@@ -283,6 +279,30 @@ static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
     return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
 
     return 1;
+}
+
+
+/**
+ * @brief The PHP method <code>mimerAddBatch()</code> extending the <code>PDOStatement</code> class to be able to set
+ *     multiple parameter values on a prepared statement with Mimer SQL
+ * @param return_value true on success, false if failed to add batch statement
+ * @throws PDOException if PDO Statement object, PDO Mimer statement object, or MimerStatement is uninitialized
+ */
+PHP_METHOD(PDOStatement_MimerSQL_Ext, mimerAddBatch) {
+    pdo_stmt_t *stmt= Z_PDO_STMT_P(ZEND_THIS);
+    pdo_mimer_stmt *mimer_stmt = (pdo_mimer_stmt *)stmt->driver_data;
+    zend_class_entry *pdoexception_ce =  zend_hash_str_find_ptr(CG(class_table), "pdoexception", sizeof("pdoexception") -1);
+
+    if (stmt->dbh == NULL || mimer_stmt == NULL || mimer_stmt->statement == NULL) {
+        zend_throw_error(pdoexception_ce,
+                         !stmt->dbh ? "PDO object is uninitialized." :
+                         !mimer_stmt ? "PDO Mimer statement object is uninitialized." :
+                         "No statement started.");
+        RETURN_THROWS();
+    }
+
+    handle_err(MimerAddBatch(mimer_stmt->statement), pdo_mimer_stmt_error(stmt), RETURN_FALSE)
+    RETURN_TRUE;
 }
 
 

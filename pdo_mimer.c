@@ -26,7 +26,6 @@
 #include "pdo/php_pdo_driver.h"
 #include "php_pdo_mimer.h"
 #include "php_pdo_mimer_int.h"
-/* #include "pdo_mimer_arginfo.h" */
 
 #define REGISTER_ATTR(x) REGISTER_PDO_CLASS_CONST_LONG(#x, (x))
 
