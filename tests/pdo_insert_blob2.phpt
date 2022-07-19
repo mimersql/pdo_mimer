@@ -6,6 +6,8 @@ The purpose of this test is to verify that the PDO driver is reading in
 the LOB data in chunks, instead of trying to allocate a buffer to hold
 the entire data before inserting it into DB. 
 
+Validates the number but not content of inserted bytes.
+
 --EXTENSIONS--
 pdo_mimer
 
@@ -18,14 +20,15 @@ require("testdb.inc");
 try {
     
     // Limit memory of script process 
-    $tot_mem_usage = memory_get_usage(true);    // includes unused pages
-    ini_set('memory_limit',$tot_mem_usage);    // lock script memory usage (can't go lower than already allocated)
-    $used_mem_usage = memory_get_usage(false);  // only in-use memory
+    $tot_mem_usage = memory_get_usage(true);    
+    ini_set('memory_limit',$tot_mem_usage);     
+    $used_mem_usage = memory_get_usage(false);  
     $mem_available = $tot_mem_usage - $used_mem_usage;
     
     // Generate binary data larger than available memory
+    $filesize = $mem_available + 10000;
     $fp = tmpfile();
-    for ($x = 0; $x < $mem_available; $x++){
+    for ($x = 0; $x < $filesize; $x++){
         fwrite($fp, pack("C", 0xFF), 1); 
     }
     rewind($fp);
@@ -38,9 +41,18 @@ try {
     $insert_stmt->bindValue(':blob', $fp, PDO::PARAM_LOB);
     $insert_stmt->execute();
     fclose($fp);
-    print "done";
 
-    
+    // Verify number of inserted bytes
+    $stm = $dbh->query("select OCTET_LENGTH(bindata) as ol from tsttbl where id=1;");
+    $res = $stm->fetch();
+    if ($res['ol'] != $filesize){
+        print "Number of bytes in DB differ from number of bytes in input file.\n";
+        print "Bytes in DB: " . $res['ol'] . "\n";
+        print "Bytes in input file: " . $filesize . "\n";
+    } else {
+        print "done";
+    }
+
 } catch (PDOException $e) {
     print "Error!: " . $e->getMessage();
 }

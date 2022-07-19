@@ -277,5 +277,8 @@ extern int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, 
 #define MIMER_FEATURE_NOT_IMPLEMENTED (-100001)
 #define MIMER_VALUE_TOO_LARGE         (-100002)
 #define MIMER_PDO_GENERAL_ERROR       (-100003)
+#define MIMER_PDO_ENC_STATEFUL        (-100004)
+#define MIMER_PDO_ENC_UNKNOWN         (-100005)
+#define MIMER_PDO_UNKNOWN_LOB_TYPE    (-100006)
 
 #endif //PHP_SRC_PHP_PDO_MIMER_ERRORS_H
