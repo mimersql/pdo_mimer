@@ -23,6 +23,7 @@
 #include "php_pdo_mimer.h"
 #include "php_pdo_mimer_int.h"
 #include "php_pdo_mimer_errors.h"
+#include "mimer_stmt_arginfo.h"
 
 /**
  * @brief Mimer PDO specific implementation of PHP streams' write. 
@@ -457,6 +458,7 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
     return 1;
 }
 
+
 /**
  * @brief A function to check if the user is still connected to a MimerSession
  * @param dbh A pointer to the PDO database handle object.
@@ -468,6 +470,18 @@ static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh) {
     return_on_err(MimerPing(handle->session), FAILURE)
 
     return SUCCESS;
+}
+
+
+/**
+ * @brief Function entry for PDO to get extra driver/statement methods specific to PDO Mimer
+ * @param dbh A pointer to the PDO database handle object.
+ * @param kind The enum value to determine which set of methods should be used to extend PDO or PDOStatement
+ * @return zend_function_entry* An array of Zend methods or NULL
+ * @throws PDOException if unable to get argument
+ */
+static inline const zend_function_entry *pdo_mimer_get_driver_methods(pdo_dbh_t *dbh, int kind) {
+    return kind == PDO_DBH_DRIVER_METHOD_KIND_STMT ? class_PDOStatement_MimerSQL_Ext_methods : NULL;
 }
 
 
@@ -485,7 +499,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         pdo_mimer_fetch_err,   /* fetch error method */
         pdo_mimer_get_attribute,   /* handle get attribute method */
         pdo_mimer_check_liveness,   /* check liveness method */
-        NULL,   /* get driver method */
+        pdo_mimer_get_driver_methods,   /* get driver method */
         NULL,   /* persistent connection shutdown method */
         NULL,    /* in transaction method */
         NULL    /* get gc method */

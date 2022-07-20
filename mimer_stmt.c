@@ -196,15 +196,15 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
 /**
  * @brief Gets number of right-most bytes containing only partial
  * multi-byte sequences.
- * 
+ *
  * @param[in] buf Buffer with multi-byte encoded data.
  * @param[in] len Length of buffer in bytes.
- * @return Number of bytes at the end of buffer which do not 
+ * @return Number of bytes at the end of buffer which do not
  * contain any valid multi-byte characters, or a negative
  * error code.
- * 
+ *
  * @remark Does not validate all characters in buffer.
- * @remark What characters are valid is determined by mblen(), which in turn 
+ * @remark What characters are valid is determined by mblen(), which in turn
  * depends on the LC_TYPE category in the current locale settings.
  * @todo The function does not detect the case in which there are invalid
  * (as in NOT partial) byte sequences smaller than MIMER_MAX_MB_LEN. Any errors
@@ -218,10 +218,10 @@ static ssize_t get_mbpartial(const char *buf, size_t len) {
 
     /** Cannot handle stateful encodings. */
     if (mblen(NULL, 0)){
-        return MIMER_PDO_ENC_STATEFUL;  
+        return MIMER_PDO_ENC_STATEFUL;
     }
 
-    /** If only last char is misformed, the furtest away from the buffer end 
+    /** If only last char is misformed, the furtest away from the buffer end
      * that the start of a full character can be is MAX_MB_LEN + (MAX_MB_LEN - 1) */
     pos = len - (2 * MIMER_MAX_MB_LEN - 2);
 
@@ -236,30 +236,30 @@ static ssize_t get_mbpartial(const char *buf, size_t len) {
     /* pass through all valid chars */
     while (pos < len && (nbytes = mblen(buf + pos, len - pos)) > 0)
         pos += nbytes;
-    
+
     if ((len - pos) < MIMER_MAX_MB_LEN){
         return len - pos;
     } else {
-        return MIMER_PDO_ENC_UNKNOWN;   
+        return MIMER_PDO_ENC_UNKNOWN;
     }
 }
 
 /**
  * @brief Fills a buffer with data from a stream and returns
  * the number of bytes which make up valid multi-byte encoded characters.
- * 
- * @param[in] stm A stream to read bytes from. 
+ *
+ * @param[in] stm A stream to read bytes from.
  * @param[in] buf A buffer in which to place the read stream data.
- * @param[in] len Length of buffer in bytes. 
- * @return Number of bytes (<=len) which contain valid multibyte characters if 
+ * @param[in] len Length of buffer in bytes.
+ * @return Number of bytes (<=len) which contain valid multibyte characters if
  * successful, 0 if nothing more to read, negative error code at failure.
- * 
- * @remark Assumes all invalid character byte sequences are at the 
- * end of the buffer. 
+ *
+ * @remark Assumes all invalid character byte sequences are at the
+ * end of the buffer.
  */
 static ssize_t get_valid_stream_chunk(php_stream *stm, char *buf, size_t len){
     ssize_t nbytes_partial, nbytes_read;
-    
+
     if ((nbytes_read = php_stream_read(stm, buf, len)) == 0)
         return 0;
 
@@ -273,15 +273,15 @@ static ssize_t get_valid_stream_chunk(php_stream *stm, char *buf, size_t len){
 
 /**
  * @brief Counts the number of multi-byte characters in a string.
- * 
+ *
  * @param[in] str String containing multi-byte characters.
  * @param[in] len Length of string in bytes.
- * @return Number of characters if successful, -1 when invalid 
+ * @return Number of characters if successful, -1 when invalid
  * character was found.
- * 
+ *
  * @remark Counts up until the given length or the first null termination
  * character, whichever comes first.
- * @remark Similar to mbslen, but using mbslen can be a portability issue. 
+ * @remark Similar to mbslen, but using mbslen can be a portability issue.
  * @see https://www.ibm.com/docs/en/aix/7.2?topic=m-mbslen-subroutine
  */
 static size_t get_mbchar_count(char *str, size_t len){
@@ -293,29 +293,29 @@ static size_t get_mbchar_count(char *str, size_t len){
         pos += nbytes;
         nchars++;
     }
-    
+
     return nbytes >= 0 ? nchars : nbytes;
 }
 
 /**
- * @brief Calculates the length of a stream of character data 
+ * @brief Calculates the length of a stream of character data
  * in both bytes and characters.
- * 
+ *
  * @param[in] stm Stream containing character data.
- * @param[out] tot_size Total number of bytes from current place 
- * in stream until EOF. 
+ * @param[out] tot_size Total number of bytes from current place
+ * in stream until EOF.
  * @return Number of characters found in stream, or negative error code.
- * 
- * @remark Reads the stream in chunks to avoid putting entire LOB in memory. 
+ *
+ * @remark Reads the stream in chunks to avoid putting entire LOB in memory.
  * @todo Might not need to calculate total bytes for clobs/nclobs anymore
  */
 static ssize_t pdo_mimer_cloblen(php_stream *stm, size_t *tot_size){
     char *buf;
     ssize_t nchars = 0;
     size_t nchars_tot = 0;
-    size_t nbytes_tot = 0; 
+    size_t nbytes_tot = 0;
     ssize_t nbytes_valid = 0;
-    
+
     buf = emalloc(MIMER_LOB_IN_CHUNK);
 
     while((nbytes_valid = get_valid_stream_chunk(stm, buf, MIMER_LOB_IN_CHUNK)) > 0) {
@@ -326,7 +326,7 @@ static ssize_t pdo_mimer_cloblen(php_stream *stm, size_t *tot_size){
         }
         nchars_tot += nchars;
         nbytes_tot += nbytes_valid;
-    } 
+    }
 
     efree(buf);
 
@@ -340,45 +340,45 @@ static ssize_t pdo_mimer_cloblen(php_stream *stm, size_t *tot_size){
 }
 
 /**
- * @brief Gets the length of the LOB stream, in bytes for all LOB types 
- * and in number of characters for CLOBs and NCLOBs. 
- * 
- * @param[in] stm Pointer to the PHP stream with the data. 
+ * @brief Gets the length of the LOB stream, in bytes for all LOB types
+ * and in number of characters for CLOBs and NCLOBs.
+ *
+ * @param[in] stm Pointer to the PHP stream with the data.
  * @param[in] lob_type Mimer constant for one of BLOB/CLOB/NCLOB.
- * @param[out] tot_size Total size of stream in bytes. 
+ * @param[out] tot_size Total size of stream in bytes.
  * @return Number of characters or bytes found in stream, depending on LOB type,
  * or negative error code.
- * 
+ *
  * @todo: Might not need to calculate total bytes for CLOBS/NCLOBS anymore
  */
 static ssize_t pdo_mimer_loblen(php_stream *stm, int32_t lob_type, size_t *tot_size){
     ssize_t nchars = 0;
-    
+
     if (MimerIsBlob(lob_type)){
         php_stream_seek(stm, 0, SEEK_END);
         nchars = php_stream_tell(stm);
         *tot_size = nchars;
         php_stream_rewind(stm);
         return nchars;
-        
+
     } else if (MimerIsClob(lob_type) || MimerIsNclob(lob_type)){
         return pdo_mimer_cloblen(stm, tot_size);
-        
+
     } else {
         return MIMER_PDO_UNKNOWN_LOB_TYPE;
-    }    
+    }
 }
 
 /**
  * @brief Reads content of stream (in chunks) into BLOB in DB.
- * 
+ *
  * @param[in] stm Stream to read data from.
- * @param[in] lob_handle Handle to BLOB, prepared by call to MimerSetLob. 
+ * @param[in] lob_handle Handle to BLOB, prepared by call to MimerSetLob.
  * @param[in] lob_size Total number of bytes in stream.
- * @return 0 on success, negative error code otherwise. 
+ * @return 0 on success, negative error code otherwise.
  */
 static ssize_t pdo_mimer_set_blob_data(php_stream *stm, MimerLob *blob_handle, size_t blob_size){
-    size_t chunk_size = MIMER_LOB_IN_CHUNK; 
+    size_t chunk_size = MIMER_LOB_IN_CHUNK;
     size_t bytes_read = 0;
     size_t bytes_left = SIZE_MAX;
     MimerError rc;
@@ -393,59 +393,58 @@ static ssize_t pdo_mimer_set_blob_data(php_stream *stm, MimerLob *blob_handle, s
     } while(bytes_read < blob_size);
     efree(blob_buf);
     return rc;
-} 
+}
 
 /**
  * @brief Transfers the character data from a stream to a CLOB column in DB.
- * 
- * @param[in] stm Stream with character data. 
+ *
+ * @param[in] stm Stream with character data.
  * @param[in] clob_handle Handle to MimerLob already prepared by call to MimerSetLob.
- * @return 0 if successfully read all data from stream, negative error code otherwise. 
+ * @return 0 if successfully read all data from stream, negative error code otherwise.
  */
 static ssize_t pdo_mimer_set_clob_data(php_stream *stm, MimerLob *clob_handle){
     ssize_t nbytes_valid;
     char *clob_buf = emalloc(MIMER_LOB_IN_CHUNK);
     while((nbytes_valid = get_valid_stream_chunk(stm, clob_buf, MIMER_LOB_IN_CHUNK)) > 0){
-        handle_err(nbytes_valid = MimerSetClobData8(clob_handle, clob_buf, nbytes_valid), 
-            efree(clob_buf) , 
+        handle_err(nbytes_valid = MimerSetClobData8(clob_handle, clob_buf, nbytes_valid),
+            efree(clob_buf) ,
             return nbytes_valid)
     }
     efree(clob_buf);
     return nbytes_valid;
-} 
+}
 
 /**
  * @brief Transfers the character data from a stream to a NCLOB column in DB.
- * 
- * @param[in] stm Stream with character data. 
+ *
+ * @param[in] stm Stream with character data.
  * @param[in] clob_handle Handle to MimerLob already prepared by call to MimerSetLob.
- * @return 0 if successfully read all data from stream, negative error code otherwise. 
+ * @return 0 if successfully read all data from stream, negative error code otherwise.
  */
 static ssize_t pdo_mimer_set_nclob_data(php_stream *stm, MimerLob *clob_handle){
-    ssize_t nbytes_valid;  
+    ssize_t nbytes_valid;
     char *nclob_buf = emalloc(MIMER_LOB_IN_CHUNK);
 
     while((nbytes_valid = get_valid_stream_chunk(stm, nclob_buf, MIMER_LOB_IN_CHUNK)) > 0){
-        handle_err(nbytes_valid = MimerSetNclobData8(clob_handle, nclob_buf, nbytes_valid), 
+        handle_err(nbytes_valid = MimerSetNclobData8(clob_handle, nclob_buf, nbytes_valid),
         efree(nclob_buf),
         return nbytes_valid)
     }
     efree(nclob_buf);
     return nbytes_valid;
-} 
+}
 
 /**
  * @brief Writes the LOB data from a streamable resource.
- * 
- * @param stmt Pointer to a prepared statement.
- * @param param The structure describing a LOB statement parameter.
+ *
+ * @param stmt A pointer to the PDO statement handle object.
+ * @param parameter The value to set for the parameter
+ * @param paramno The number of the parameter to set
  * @return Mimer status code.
  */
-static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
+static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter, int16_t paramno){
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerStatement *statement = &stmt_handle->statement;
-    zval *parameter = &param->parameter;
-    int16_t mim_paramno = param->paramno + 1;
     MimerError return_code, lob_type;
     MimerLob lob_handle;
     ssize_t lob_len = 0;
@@ -453,34 +452,34 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
     php_stream *stm = NULL;
 
     /** make a PHP stream from the zval
-        TODO: More precise error info */ 
+        TODO: More precise error info */
     if (Z_TYPE_P(parameter) != IS_RESOURCE){
         mimer_throw_except(&stmt_handle->error_info, "Expected a resource for LOB parameter", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
+            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
     }
     php_stream_from_zval_no_verify(stm, parameter);
     if (!stm){
         mimer_throw_except(&stmt_handle->error_info, "Expected a stream resource for LOB parameter.", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
+            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
     }
     zval_ptr_dtor(parameter);
 
     /** DB column type decides how we interpret and insert data */
-    handle_err(return_code = MimerParameterType(*statement, mim_paramno), return return_code)
+    handle_err(return_code = MimerParameterType(*statement, paramno), return return_code)
     lob_type = return_code;
 
     /** lob_len has different meanings for BLOBs and CLOB/NCLOBs */
     lob_len = pdo_mimer_loblen(stm, lob_type, &lob_size);
     if (lob_len == 0){
-        return MimerSetLob(*statement, mim_paramno, 0, &lob_handle);
+        return MimerSetLob(*statement, paramno, 0, &lob_handle);
     } else if (lob_len < 0){
         /** TODO: error handling */
         mimer_throw_except(&stmt_handle->error_info, "Error while calculating LOB length.", \
-            lob_len, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
+            lob_len, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
     }
 
     /** make space in DB */
-    return_on_err_stmt(return_code = MimerSetLob(*statement, mim_paramno, lob_len, &lob_handle), return_code)
+    return_on_err_stmt(return_code = MimerSetLob(*statement, paramno, lob_len, &lob_handle), return_code)
 
     /* start data transfer */
     if (MimerIsBlob(lob_type)){
@@ -492,27 +491,27 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
     } else {
         /** TODO: More precise error info */
         mimer_throw_except(&stmt_handle->error_info, "Expected BLOB, CLOB or NCLOB column type", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) 
+            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
     }
 
     return return_code;
 }
 
-/**
- * @brief Called once for each parameter immediately before calling mimer_stmt_execute.
- * 
- * @param stmt A pointer to the PDO statement handle object.
- * @param param The structure describing either a statement parameter or a bound column.
- * @return Mimer status code.
- */
-static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
-    MimerError return_code;
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerStatement *statement = &stmt_handle->statement;
-    int16_t paramno = (int16_t)param->paramno + 1; /* parameter number is 0-indexed, while Mimer is not */
-    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
 
-    switch (PDO_PARAM_TYPE(param->param_type)) {
+/**
+ * @brief Set parameter values for the statement
+ * @param stmt A pointer to the PDO statement handle object.
+ * @param parameter The value to set for the parameter
+ * @param paramno The number of the parameter to set
+ * @param param_type The parameter's data type
+ * @return return code from MimerSetX()
+ */
+static MimerError pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, int16_t paramno, enum pdo_param_type param_type) {
+    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
+    MimerStatement *statement = &mimer_stmt->statement;
+    MimerError return_code = MIMER_SUCCESS;
+
+    switch (PDO_PARAM_TYPE(param_type)) {
         case PDO_PARAM_NULL:
             return_code = MimerSetNull(*statement, paramno);
             break;
@@ -530,23 +529,23 @@ static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param
             break;
 
         case PDO_PARAM_LOB:
-            return_code = pdo_mimer_set_lob_data(stmt, param);
+            return_code = pdo_mimer_set_lob_data(stmt, parameter, paramno);
             break;
-            
+
         /* unimplemented */
 #       define UNSUPPORTED(pdo_param) \
-        case pdo_param:                \
-            mimer_throw_except(&stmt_handle->error_info, #pdo_param " support is not yet implemented", \
+        case pdo_param:               \
+            mimer_throw_except(&mimer_stmt->error_info, #pdo_param " support is not yet implemented", \
                 MIMER_FEATURE_NOT_IMPLEMENTED, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, stmt->dbh->is_persistent, stmt->error_code) \
-            break; 
-            
+            break;
+
         UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
         UNSUPPORTED(PDO_PARAM_STR_NATL)
         UNSUPPORTED(PDO_PARAM_STR_CHAR)
         UNSUPPORTED(PDO_PARAM_STMT)
         default:
-            mimer_throw_except(&stmt_handle->error_info, "Unexpected parameter type", \
-                MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) \
+            mimer_throw_except(&mimer_stmt->error_info, "Unexpected parameter type",
+                MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
     }
 
     return return_code;
@@ -559,7 +558,7 @@ static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param
  * @param param The structure describing either a statement parameter or a bound column.
  * @param event_type The type of event to occur for this parameter.
  * @return 1 for success, 0 for failure.
- * @remark This hook will be called for each bound parameter and bound column in the statement. 
+ * @remark This hook will be called for each bound parameter and bound column in the statement.
 *           For ALLOC and FREE events, a single call will be made for each parameter or column
  * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">Implementing PDO</a>
  * @see <a href="https://www.php.net/manual/en/pdo.constants.php">PHP: Predefined Constants</a>
@@ -579,23 +578,25 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
             "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
                             &stmt->error_code);
 
+    if (param->paramno >= INT16_MAX) {
+        /* TODO: custom error */
+        strcpy(stmt->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
+        pdo_throw_exception(MIMER_VALUE_TOO_LARGE,
+            "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
+                            &stmt->error_code);
+
         return 0;
     }
-    
-    switch(event_type){
-        case PDO_PARAM_EVT_EXEC_PRE:
-            return_code = pdo_mimer_pre_execute(stmt, param);
-            break;
-        case PDO_PARAM_EVT_NORMALIZE:
-        case PDO_PARAM_EVT_ALLOC:
-        case PDO_PARAM_EVT_FREE:
-        case PDO_PARAM_EVT_EXEC_POST:
-        case PDO_PARAM_EVT_FETCH_PRE:
-        case PDO_PARAM_EVT_FETCH_POST:
-        default:
-            return 1;
+
+    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
+    if (event_type == PDO_PARAM_EVT_ALLOC && !Z_ISREF(param->parameter)) {
+        return_code = pdo_mimer_stmt_set_params(stmt, parameter, param->paramno + 1,param->param_type);
+    } else if (event_type == PDO_PARAM_EVT_EXEC_PRE && Z_ISREF(param->parameter)) {
+        return_code = pdo_mimer_stmt_set_params(stmt, parameter, param->paramno + 1,param->param_type);
+    } else {
+        return 1;
     }
-    
+
     return_on_err_stmt(return_code, 0)
     return 1;
 }
@@ -623,6 +624,30 @@ static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
     return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
 
     return 1;
+}
+
+
+/**
+ * @brief The PHP method <code>mimerAddBatch()</code> extending the <code>PDOStatement</code> class to be able to set
+ *     multiple parameter values on a prepared statement with Mimer SQL
+ * @param return_value true on success, false if failed to add batch statement
+ * @throws PDOException if PDO Statement object, PDO Mimer statement object, or MimerStatement is uninitialized
+ */
+PHP_METHOD(PDOStatement_MimerSQL_Ext, mimerAddBatch) {
+    pdo_stmt_t *stmt= Z_PDO_STMT_P(ZEND_THIS);
+    pdo_mimer_stmt *mimer_stmt = (pdo_mimer_stmt *)stmt->driver_data;
+    zend_class_entry *pdoexception_ce =  zend_hash_str_find_ptr(CG(class_table), "pdoexception", sizeof("pdoexception") -1);
+
+    if (stmt->dbh == NULL || mimer_stmt == NULL || mimer_stmt->statement == NULL) {
+        zend_throw_error(pdoexception_ce,
+                         !stmt->dbh ? "PDO object is uninitialized." :
+                         !mimer_stmt ? "PDO Mimer statement object is uninitialized." :
+                         "No statement started.");
+        RETURN_THROWS();
+    }
+
+    handle_err(MimerAddBatch(mimer_stmt->statement), pdo_mimer_stmt_error(stmt), RETURN_FALSE)
+    RETURN_TRUE;
 }
 
 
