@@ -3,6 +3,7 @@ Mimer SQL
 --SKIPIF--
 <?php
 if (!extension_loaded('pdo') || !extension_loaded('pdo_mimer')) print 'skip not loaded';
+if (!is_dir(getenv('TEST_DIR') ?: 'ext/pdo/tests' )) print 'skip no test dir';
 ?>
 --REDIRECTTEST--
 # magic auto-configuration
