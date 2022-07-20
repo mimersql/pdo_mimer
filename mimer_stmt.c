@@ -24,7 +24,6 @@
 #include "php_pdo_mimer_int.h"
 #include "php_pdo_mimer_errors.h"
 
-
 /**
  * @brief PDO Mimer method to end a statement and free necessary memory
  * @param stmt A pointer to the PDO statement handle object.
@@ -571,6 +570,13 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
     if (stmt_handle->statement == NULL || !param->is_param) { /* nothing to do */
         return 1;
     }
+    
+    if (param->paramno >= INT16_MAX) {
+        /* TODO: custom error */
+        strcpy(stmt->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
+        pdo_throw_exception(MIMER_VALUE_TOO_LARGE,
+            "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
+                            &stmt->error_code);
 
     if (param->paramno >= INT16_MAX) {
         /* TODO: custom error */
