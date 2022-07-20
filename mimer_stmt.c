@@ -438,15 +438,14 @@ static ssize_t pdo_mimer_set_nclob_data(php_stream *stm, MimerLob *clob_handle){
 /**
  * @brief Writes the LOB data from a streamable resource.
  *
- * @param stmt Pointer to a prepared statement.
- * @param param The structure describing a LOB statement parameter.
+ * @param stmt A pointer to the PDO statement handle object.
+ * @param parameter The value to set for the parameter
+ * @param paramno The number of the parameter to set
  * @return Mimer status code.
  */
-static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
+static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter, int16_t paramno){
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
     MimerStatement *statement = &stmt_handle->statement;
-    zval *parameter = &param->parameter;
-    int16_t mim_paramno = param->paramno + 1;
     MimerError return_code, lob_type;
     MimerLob lob_handle;
     ssize_t lob_len = 0;
@@ -467,13 +466,13 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
     zval_ptr_dtor(parameter);
 
     /** DB column type decides how we interpret and insert data */
-    handle_err(return_code = MimerParameterType(*statement, mim_paramno), return return_code)
+    handle_err(return_code = MimerParameterType(*statement, paramno), return return_code)
     lob_type = return_code;
 
     /** lob_len has different meanings for BLOBs and CLOB/NCLOBs */
     lob_len = pdo_mimer_loblen(stm, lob_type, &lob_size);
     if (lob_len == 0){
-        return MimerSetLob(*statement, mim_paramno, 0, &lob_handle);
+        return MimerSetLob(*statement, paramno, 0, &lob_handle);
     } else if (lob_len < 0){
         /** TODO: error handling */
         mimer_throw_except(&stmt_handle->error_info, "Error while calculating LOB length.", \
@@ -481,7 +480,7 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
     }
 
     /** make space in DB */
-    return_on_err_stmt(return_code = MimerSetLob(*statement, mim_paramno, lob_len, &lob_handle), return_code)
+    return_on_err_stmt(return_code = MimerSetLob(*statement, paramno, lob_len, &lob_handle), return_code)
 
     /* start data transfer */
     if (MimerIsBlob(lob_type)){
@@ -499,21 +498,21 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, struct pdo_bound_para
     return return_code;
 }
 
-/**
- * @brief Called once for each parameter immediately before calling mimer_stmt_execute.
- *
- * @param stmt A pointer to the PDO statement handle object.
- * @param param The structure describing either a statement parameter or a bound column.
- * @return Mimer status code.
- */
-static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param_data *param){
-    MimerError return_code;
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerStatement *statement = &stmt_handle->statement;
-    int16_t paramno = (int16_t)param->paramno + 1; /* parameter number is 0-indexed, while Mimer is not */
-    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
 
-    switch (PDO_PARAM_TYPE(param->param_type)) {
+/**
+ * @brief Set parameter values for the statement
+ * @param stmt A pointer to the PDO statement handle object.
+ * @param parameter The value to set for the parameter
+ * @param paramno The number of the parameter to set
+ * @param param_type The parameter's data type
+ * @return return code from MimerSetX()
+ */
+static MimerError pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, int16_t paramno, enum pdo_param_type param_type) {
+    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
+    MimerStatement *statement = &mimer_stmt->statement;
+    MimerError return_code = MIMER_SUCCESS;
+
+    switch (PDO_PARAM_TYPE(param_type)) {
         case PDO_PARAM_NULL:
             return_code = MimerSetNull(*statement, paramno);
             break;
@@ -531,13 +530,13 @@ static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param
             break;
 
         case PDO_PARAM_LOB:
-            return_code = pdo_mimer_set_lob_data(stmt, param);
+            return_code = pdo_mimer_set_lob_data(stmt, parameter, paramno);
             break;
 
         /* unimplemented */
 #       define UNSUPPORTED(pdo_param) \
-        case pdo_param:                \
-            mimer_throw_except(&stmt_handle->error_info, #pdo_param " support is not yet implemented", \
+        case pdo_param:               \
+            mimer_throw_except(&mimer_stmt->error_info, #pdo_param " support is not yet implemented", \
                 MIMER_FEATURE_NOT_IMPLEMENTED, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, stmt->dbh->is_persistent, stmt->error_code) \
             break;
 
@@ -546,8 +545,8 @@ static MimerError pdo_mimer_pre_execute(pdo_stmt_t *stmt, struct pdo_bound_param
         UNSUPPORTED(PDO_PARAM_STR_CHAR)
         UNSUPPORTED(PDO_PARAM_STMT)
         default:
-            mimer_throw_except(&stmt_handle->error_info, "Unexpected parameter type", \
-                MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code) \
+            mimer_throw_except(&mimer_stmt->error_info, "Unexpected parameter type",
+                MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
     }
 
     return return_code;
@@ -583,18 +582,13 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
         return 0;
     }
 
-    switch(event_type){
-        case PDO_PARAM_EVT_EXEC_PRE:
-            return_code = pdo_mimer_pre_execute(stmt, param);
-            break;
-        case PDO_PARAM_EVT_NORMALIZE:
-        case PDO_PARAM_EVT_ALLOC:
-        case PDO_PARAM_EVT_FREE:
-        case PDO_PARAM_EVT_EXEC_POST:
-        case PDO_PARAM_EVT_FETCH_PRE:
-        case PDO_PARAM_EVT_FETCH_POST:
-        default:
-            return 1;
+    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
+    if (event_type == PDO_PARAM_EVT_ALLOC && !Z_ISREF(param->parameter)) {
+        return_code = pdo_mimer_stmt_set_params(stmt, parameter, param->paramno + 1,param->param_type);
+    } else if (event_type == PDO_PARAM_EVT_EXEC_PRE && Z_ISREF(param->parameter)) {
+        return_code = pdo_mimer_stmt_set_params(stmt, parameter, param->paramno + 1,param->param_type);
+    } else {
+        return 1;
     }
 
     return_on_err_stmt(return_code, 0)
