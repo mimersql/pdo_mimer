@@ -24,6 +24,36 @@
 #include "php_pdo_mimer_int.h"
 #include "php_pdo_mimer_errors.h"
 
+inline static MimerError pdo_mimer_stmt_close_cursor(pdo_mimer_stmt *mimer_stmt) {
+    if (mimer_stmt->cursor_open) {
+        mimer_stmt->cursor_open = 0;
+        return MimerCloseCursor(mimer_stmt->statement);
+    }
+
+    return MIMER_SUCCESS;
+}
+
+inline static MimerError _pdo_mimer_stmt_open_cursor(pdo_mimer_stmt *mimer_stmt, int reopen) {
+    MimerError return_code = MIMER_SUCCESS;
+
+    if (mimer_stmt->cursor_open && reopen) {
+        return_code = pdo_mimer_stmt_close_cursor(mimer_stmt);
+        if (!MIMER_SUCCEEDED(return_code)) {
+            return return_code;
+        }
+    }
+
+    if (!mimer_stmt->cursor_open) {
+        mimer_stmt->cursor_open = 1;
+        return_code = MimerOpenCursor(mimer_stmt->statement);
+    }
+
+    return return_code;
+}
+
+#define pdo_mimer_stmt_open_cursor(mimer_stmt) _pdo_mimer_stmt_open_cursor(mimer_stmt, 0)
+#define pdo_mimer_stmt_reopen_cursor(mimer_stmt) _pdo_mimer_stmt_open_cursor(mimer_stmt, 1)
+
 /**
  * @brief PDO Mimer method to end a statement and free necessary memory
  * @param stmt A pointer to the PDO statement handle object.
@@ -55,12 +85,8 @@ static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
 
     if(MimerStatementHasResultSet(stmt_handle->statement)) {
-        if (stmt->executed) {
-            return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
-        }
-        return_on_err_stmt(MimerOpenCursor(stmt_handle->statement), 0)
-
         int num_columns;
+        return_on_err_stmt(pdo_mimer_stmt_reopen_cursor(stmt_handle), 0)
         return_on_err_stmt(num_columns = MimerColumnCount(stmt_handle->statement), 0)
         php_pdo_stmt_set_column_count(stmt, num_columns);
     } else {
@@ -86,10 +112,14 @@ static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
  *      </a>
  */
 static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerStatement *mimer_statement = &stmt_handle->statement;
+    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
+    MimerStatement *statement = &mimer_stmt->statement;
     int32_t fetch_op_mode = MIMER_NEXT;
     MimerError return_code;
+
+    if (stmt->executed) {
+        return_on_err_stmt(pdo_mimer_stmt_open_cursor(mimer_stmt), 0)
+    }
 
     /* map PDO fetch orientation to MimerFetchScroll operation mode */
     switch (ori) {
@@ -119,8 +149,8 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
             break;
     }
 
-    return_on_err_stmt(return_code = stmt_handle->cursor_type == MIMER_FORWARD_ONLY ? MimerFetch(*mimer_statement) :
-            MimerFetchScroll(*mimer_statement, fetch_op_mode, (int32_t)offset), 0)
+    return_on_err_stmt(return_code = mimer_stmt->cursor_type == MIMER_FORWARD_ONLY ? MimerFetch(*statement) :
+                                     MimerFetchScroll(*statement, fetch_op_mode, (int32_t)offset), 0)
 
     return return_code != MIMER_NO_DATA;
 }
@@ -614,7 +644,7 @@ static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
 static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
 
-    return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
+    pdo_mimer_stmt_close_cursor(stmt_handle);
 
     return 1;
 }

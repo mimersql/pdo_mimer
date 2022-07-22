@@ -67,7 +67,8 @@ typedef struct pdo_mimer_stmt_t {
     pdo_mimer_handle *handle;
     MimerStatement statement; 
     MimerErrorInfo error_info; 
-    int32_t cursor_type; 
+    int32_t cursor_type;
+    int cursor_open;
 } pdo_mimer_stmt;
 
 typedef struct pdo_data_src_parser data_src_opt;
