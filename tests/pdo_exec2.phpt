@@ -24,9 +24,10 @@ try {
     var_dump($res);
 
 } catch (PDOException $e) {
-    print "Error!: " . $e->getMessage();
+    [$_, $code, $msg] = $e->errorInfo;
+    print "[$code]: $msg";
 }
 
 ?>
---EXPECT--
-int(0)
+--EXPECTF--
+[-24101]: An illegal sequence of API calls was detected
