@@ -296,7 +296,7 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     }
 
     return_on_err(return_code, -1)
-    return num_affected_rows;
+    return num_affected_rows >= 0 ? num_affected_rows : -1; // TODO: fix error
 }
 
 
