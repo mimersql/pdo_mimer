@@ -21,7 +21,6 @@ try {
     $dbh->exec('INSERT INTO tsttbl VALUES(2)');
     $dbh->exec('INSERT INTO tsttbl VALUES(3)');
     $res = $dbh->exec('SELECT * FROM tsttbl');
-    var_dump($res);
 
 } catch (PDOException $e) {
     [$_, $code, $msg] = $e->errorInfo;
