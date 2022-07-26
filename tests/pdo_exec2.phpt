@@ -1,8 +1,8 @@
 --TEST--
-Mimer SQL (Exec): exec row count with result set statement 
+Mimer SQL (Exec): PDO::exec() with result set statement 
 
 --DESCRIPTION--
-Tests that PDO::exec returns zero count on a SELECT statement
+Tests that PDO::exec triggers error with result set statement
 
 --EXTENSIONS--
 pdo_mimer
