@@ -1,52 +1,19 @@
 --TEST--
-Mimer SQL (query): fetching a result set 
-
---EXTENSIONS--
-pdo_mimer
-
+PDO Mimer (query): fetching a result set
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
-<?php
-require("testdb.inc");
+<?php require_once 'pdo_mimer_test.inc';
+extract(PDOMimerTest::extract());
 try {
-    $dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
-    @$dbh->exec('DROP TABLE tsttbl');
-    $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY, name VARCHAR(10))');
-    $dbh->exec("INSERT INTO tsttbl VALUES(1, 'A')");
-    $dbh->exec("INSERT INTO tsttbl VALUES(2, 'B')");
-    $dbh->exec("INSERT INTO tsttbl VALUES(3, 'C')");
-
-    foreach($dbh->query('SELECT * from tsttbl') as $row) {
-        print_r($row);
-    }
-    
-
+    $db = new PDOMimerTest();
+    foreach($db->query("SELECT $column FROM $table", PDO::FETCH_ASSOC) as $i => $row)
+        if ($row["$column"] != $values[$i])
+            die("Fetch does not match insert: " . $row["$column"] . " => " . $values[$i]);
 } catch (PDOException $e) {
-    print "Error!: " . $e->getMessage();
+    PDOMimerTest::error($e);
 }
-
 ?>
 --EXPECT--
-Array
-(
-    [id] => 1
-    [0] => 1
-    [name] => A
-    [1] => A
-)
-Array
-(
-    [id] => 2
-    [0] => 2
-    [name] => B
-    [1] => B
-)
-Array
-(
-    [id] => 3
-    [0] => 3
-    [name] => C
-    [1] => C
-)

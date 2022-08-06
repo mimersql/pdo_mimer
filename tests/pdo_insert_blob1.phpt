@@ -1,51 +1,41 @@
 --TEST--
-Mimer SQL (LOB): inserting a small blob from file into the database
-
+PDO Mimer (LOB): inserting a small blob from file into the database
 --DESCRIPTION--
 Inserts a blob of just a few bytes and validates that the correct number
 of bytes was inserted. Does not validate content of inserted bytes.
-
---EXTENSIONS--
-pdo_mimer
-
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
-<?php
-require("testdb.inc");
-try {
-    $dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
-    @$dbh->exec('DROP TABLE tsttbl');
-    $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY, bindata BLOB)');
+<?php require_once 'pdo_mimer_test.inc';
+extract(PDOMimerTest::extract());
 
+try {
     $tstnum = 0x61626364; //0x61-64 = a-d ASCII
     $bin_str = pack('i', $tstnum);
     $nbytes = strlen($bin_str);
-    $fp = tmpfile();
-    fwrite($fp, $bin_str);
+
+    fwrite($fp = tmpfile(), $bin_str);
     rewind($fp);
 
-    $insert_stmt = $dbh->prepare("insert into tsttbl (id, bindata) values (1, :blob)");
-    $insert_stmt->bindValue(':blob', $fp, PDO::PARAM_LOB);
-    $insert_stmt->execute();
+    $db = new PDOMimerTest(false);
+    $blob = new Column('blob', [TYPE => 'BLOB'], [TYPE => PDO::PARAM_LOB, VALUES => [$fp]]);
+    $db->createTables(new Table($table, [$id, $blob]));
+
+    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, $blob->param)");
+    $blob->bindValue($stmt)->execute();
     fclose($fp);
-    
+
     // Verify number of inserted bytes
-    $stm = $dbh->query("select OCTET_LENGTH(bindata) as ol from tsttbl where id=1;");
-    $res = $stm->fetch();
+    $res = $db->query("SELECT OCTET_LENGTH($blob) AS ol FROM $table FETCH 1")->fetch();
     if ($res['ol'] != $nbytes){
         print "Number of bytes in DB differ from number of bytes in input file.\n";
         print "Bytes in DB: " . $res['ol'] . "\n";
         print "Bytes in input file: " . $nbytes . "\n";
-    } else {
-        print "done";
     }
-    
 } catch (PDOException $e) {
-    print "Error!: " . $e->getMessage();
+    PDOMimerTest::error($e);
 }
-
 ?>
 --EXPECT--
-done

@@ -1,32 +1,23 @@
 --TEST--
-Mimer SQL (Exec): Row count 
-
+PDO Mimer(doer): Num affected rows
 --DESCRIPTION--
-Tests that PDO::exec returns the number of affected rows.
-
---EXTENSIONS--
-pdo_mimer
-
+Tests that PDO::exec returns the correct number of affected rows.
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
-<?php
-require("testdb.inc");
+<?php require_once 'pdo_mimer_test.inc';
+extract(PDOMimerTest::extract(false));
 try {
-    $dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
-    @$dbh->exec('DROP TABLE tsttbl');
-    $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY)');
-    $dbh->exec('INSERT INTO tsttbl VALUES(1)');
-    $dbh->exec('INSERT INTO tsttbl VALUES(2)');
-    $dbh->exec('INSERT INTO tsttbl VALUES(3)');
-    $count = $dbh->exec('DELETE FROM tsttbl');
-    var_dump($count);
-
+    $db = new PDOMimerTest(false);
+    if (($dropped = $db->dropTables()) !== $rows)
+        die("num dropped rows doesn't match num inserted rows: [dropped => $dropped, inserted => $rows]");
 } catch (PDOException $e) {
-    print "Error!: " . $e->getMessage();
+    PDOMimerTest::error($e);
 }
-
 ?>
 --EXPECT--
-int(3)
+
+--XFAIL--
+Number of affected rows not (yet?) supported by DDL statements

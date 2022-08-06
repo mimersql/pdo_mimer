@@ -1,21 +1,18 @@
 --TEST--
-Mimer SQL (Connection): Connect to non-existing DB
-
---EXTENSIONS--
-pdo_mimer
-
+PDO Mimer (Connection): Connect to non-existing DB
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
-<?php
-require("testdb.inc");
+<?php require_once 'pdo_mimer_test.inc';
 try {
     $dbh = new PDO("mimer:dbname=this-db-does-not-exist");
 } catch (PDOException $e) {
-    print "PDOException was thrown";
+    PDOMimerTest::error($e);
 }
-
 ?>
---EXPECT--
-PDOException was thrown
+--EXPECTF--
+[-%d]: %s
+--XFAIL--
+Error output converts Mimer SQL's signed code to an unsigned integer

@@ -1,25 +1,18 @@
 --TEST--
-Mimer SQL (Connection): Connect to DB with invalid DSN option
-
---EXTENSIONS--
-pdo_mimer
-
+PDO Mimer (Connection): Connect to DB with invalid DSN option
 --DESCRIPTION--
-Intended behaviour by PDO seems to be to ignore invalid DSN options. 
-
+Intended behaviour by PDO seems to be to ignore invalid DSN options.
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
 <?php
-require("testdb.inc");
+require 'pdo_mimer_test.inc';
 try {
     $dbh = new PDO("mimer:non-existing-option=val", PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
-    print("done");
 } catch (PDOException $e) {
-    print "PDOException was thrown";
+    print PDOMimerTest::error($e);
 }
-
 ?>
 --EXPECT--
-done

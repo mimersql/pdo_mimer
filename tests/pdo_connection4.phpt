@@ -1,21 +1,21 @@
 --TEST--
-Mimer SQL (Connection): Connect to DB with incorrect PW
+PDO Mimer (Connection): Connect to DB with incorrect PW
 
 --EXTENSIONS--
 pdo_mimer
 
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
 <?php
-require("testdb.inc");
+require 'pdo_mimer_test.inc';
 try {
     $dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS . "wrong");
 } catch (PDOException $e) {
-    print "PDOException was thrown";
+    print PDOMimerTest::error($e);
 }
-
 ?>
---EXPECT--
-PDOException was thrown
+--EXPECTF--
+[-%d]: %s

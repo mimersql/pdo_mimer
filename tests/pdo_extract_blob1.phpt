@@ -1,43 +1,36 @@
 --TEST--
-Mimer SQL (LOB): extracting a small blob from database
-
---EXTENSIONS--
-pdo_mimer
+PDO Mimer (LOB): extracting a small blob from database
 
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
-<?php
-require("testdb.inc");
-try {
-    $dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
-    @$dbh->exec('DROP TABLE tsttbl');
-    $dbh->exec('CREATE TABLE tsttbl(id INT NOT NULL PRIMARY KEY, bindata BLOB)');
+<?php require_once 'pdo_mimer_test.inc';
+extract(PDOMimerTest::extract());
 
+try {
     $bin_str = pack('C*', 0, 255, 47);
-    $fp = tmpfile();
-    fwrite($fp, $bin_str);
+    fwrite($fp = tmpfile(), $bin_str);
     rewind($fp);
 
-    $insert_stmt = $dbh->prepare("insert into tsttbl (id, bindata) values (1, :blob)");
-    $insert_stmt->bindValue(':blob', $fp, PDO::PARAM_LOB);
-    $insert_stmt->execute();
+    $db = new PDOMimerTest(false);
+    $blob = new Column('blob', [TYPE => 'BLOB'], [TYPE => PDO::PARAM_LOB, VALUES => [$fp]]);
+    $db->createTables(new Table($table, [$id, $blob]));
+
+    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, $blob->param)");
+    $blob->bindValue($stmt)->execute();
     fclose($fp);
 
-    $extract_stmt = $dbh->prepare("select bindata from tsttbl where id=1");
-    $extract_stmt->execute();
-    $extract_stmt->bindColumn(1, $lob, PDO::PARAM_LOB);
-    $extract_stmt->fetch(PDO::FETCH_BOUND);
-    
-    $bin_str = fread($lob, 3);
-    $binvals = unpack("C*", $bin_str);
-    var_dump($binvals);
-    
-} catch (PDOException $e) {
-    print "Error!: " . $e->getMessage();
-}
+    $stmt = $db->query("SELECT $blob FROM $table FETCH 1");
+    $blob->bindColumn($stmt, $lob)->fetch(PDO::FETCH_BOUND);
 
+    $bin_str = fread($lob, 3);
+    var_dump(unpack("C*", $bin_str));
+
+} catch (PDOException $e) {
+    PDOMimerTest::error($e);
+}
 ?>
 --EXPECT--
 array(3) {

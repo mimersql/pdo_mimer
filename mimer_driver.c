@@ -147,7 +147,7 @@ php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lob
  * @see https://docs.mimer.com/MimerSqlManual/v110/html/Manuals/App_Return_Codes/App_Return_Codes.htm
  */
 int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line) {
-    pdo_mimer_handle *mimer_db_handle = dbh->driver_data;
+    pdo_mimer_handle *mimer_dbh = dbh->driver_data;
     MimerHandle mimer_handle;
     MimerErrorInfo *error_info;
     pdo_error_type *pdo_error;
@@ -156,19 +156,20 @@ int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int lin
     /* handle either statement or session error */
     if (stmt) {
         pdo_error = &stmt->error_code;
-        pdo_mimer_stmt *mimer_stmt_handle = stmt->driver_data;
+        pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
 
-        if (mimer_stmt_handle->statement == NULL) { /* default to session mimer_stmt_handle if statement unable to be created */
-            mimer_handle = (MimerHandle) mimer_db_handle->session;
+        if (mimer_stmt->statement == NULL) { /* default to session mimer_stmt if statement unable to be created */
+            mimer_handle = (MimerHandle) mimer_dbh->session;
+            error_info = &mimer_dbh->error_info;
         } else {
-            mimer_handle = (MimerHandle) mimer_stmt_handle->statement;
+            mimer_handle = (MimerHandle) mimer_stmt->statement;
+            error_info = &mimer_stmt->error_info;
         }
 
-        error_info = &mimer_stmt_handle->error_info;
     } else {
         pdo_error = &dbh->error_code;
-        mimer_handle = (MimerHandle)mimer_db_handle->session;
-        error_info = &mimer_db_handle->error_info;
+        mimer_handle = (MimerHandle)mimer_dbh->session;
+        error_info = &mimer_dbh->error_info;
     }
 
     /* free any previous error message */
@@ -285,11 +286,15 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
         if (!MIMER_SUCCEEDED(num_affected_rows = MimerExecute(statement))) { /* probably a select query */
             MimerError mimer_error;
             MimerGetStr(MimerGetError8, error_msg, return_code, statement, &mimer_error)
-            handle_custom_err(&handle->error_info, error_msg, mimer_error, SQLSTATE_GENERAL_ERROR, dbh->is_persistent,
-                              dbh->error_code)
+//            handle_custom_err(&handle->error_info, error_msg, mimer_error, SQLSTATE_GENERAL_ERROR, dbh->is_persistent,
+//                              dbh->error_code)
+            MimerEndStatement(&statement);
+            pdo_throw_exception(num_affected_rows, error_msg, (pdo_error_type *)SQLSTATE_GENERAL_ERROR);
+            return -1;
         }
 
-        return_code = MimerEndStatement(&statement);
+        return_on_err(MimerEndStatement(&statement), -1);
+        return num_affected_rows >= 0 ? num_affected_rows : -1;
     } else if (return_code == MIMER_STATEMENT_CANNOT_BE_PREPARED) {
         /* The statement was a DDL statement, which cannot be prepared */
         return_code = MimerExecuteStatement8(handle->session, ZSTR_VAL(sql));

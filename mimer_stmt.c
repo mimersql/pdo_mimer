@@ -24,35 +24,6 @@
 #include "php_pdo_mimer_int.h"
 #include "php_pdo_mimer_errors.h"
 
-inline static MimerError pdo_mimer_stmt_close_cursor(pdo_mimer_stmt *mimer_stmt) {
-    if (mimer_stmt->cursor_open) {
-        mimer_stmt->cursor_open = 0;
-        return MimerCloseCursor(mimer_stmt->statement);
-    }
-
-    return MIMER_SUCCESS;
-}
-
-inline static MimerError _pdo_mimer_stmt_open_cursor(pdo_mimer_stmt *mimer_stmt, int reopen) {
-    MimerError return_code = MIMER_SUCCESS;
-
-    if (mimer_stmt->cursor_open && reopen) {
-        return_code = pdo_mimer_stmt_close_cursor(mimer_stmt);
-        if (!MIMER_SUCCEEDED(return_code)) {
-            return return_code;
-        }
-    }
-
-    if (!mimer_stmt->cursor_open) {
-        mimer_stmt->cursor_open = 1;
-        return_code = MimerOpenCursor(mimer_stmt->statement);
-    }
-
-    return return_code;
-}
-
-#define pdo_mimer_stmt_open_cursor(mimer_stmt) _pdo_mimer_stmt_open_cursor(mimer_stmt, 0)
-#define pdo_mimer_stmt_reopen_cursor(mimer_stmt) _pdo_mimer_stmt_open_cursor(mimer_stmt, 1)
 
 /**
  * @brief PDO Mimer method to end a statement and free necessary memory
@@ -60,15 +31,19 @@ inline static MimerError _pdo_mimer_stmt_open_cursor(pdo_mimer_stmt *mimer_stmt,
  * @return 1 for success
  */
 static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
-    pdo_mimer_stmt *stmt_handle = (pdo_mimer_stmt *)stmt->driver_data;
+    pdo_mimer_stmt *mimer_stmt = (pdo_mimer_stmt *)stmt->driver_data;
 
-    handle_err_stmt(MimerEndStatement(&stmt_handle->statement))
+    if (mimer_stmt->cursor_open)
+        handle_err_stmt(MimerCloseCursor(mimer_stmt->statement));
 
-    if (stmt_handle->error_info.error_msg != NULL) {
-        pefree(stmt_handle->error_info.error_msg, stmt->dbh->is_persistent);
+    if (mimer_stmt->statement != NULL)
+        handle_err_stmt(MimerEndStatement(&mimer_stmt->statement))
+
+    if (mimer_stmt->error_info.error_msg != NULL) {
+        pefree(mimer_stmt->error_info.error_msg, stmt->dbh->is_persistent);
     }
 
-    efree(stmt_handle);
+    efree(mimer_stmt);
     return 1;
 }
 
@@ -82,15 +57,25 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
  *      </a>
  */
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
+    MimerError return_code;
 
-    if(MimerStatementHasResultSet(stmt_handle->statement)) {
+//    if (!MIMER_SUCCEEDED(return_code = MimerExecute(mimer_stmt->statement))) {
+//        zend_string* query = zend_string_tolower(stmt->query_string);
+//        if (strstr(ZSTR_VAL(query), "select"))  {
+//
+//        }
+//
+//    }
+
+    if(MimerStatementHasResultSet(mimer_stmt->statement)) {
         int num_columns;
-        return_on_err_stmt(pdo_mimer_stmt_reopen_cursor(stmt_handle), 0)
-        return_on_err_stmt(num_columns = MimerColumnCount(stmt_handle->statement), 0)
+        return_on_err_stmt(num_columns = MimerColumnCount(mimer_stmt->statement), 0)
+        return_on_err_stmt(MimerOpenCursor(mimer_stmt->statement), 0)
+        mimer_stmt->cursor_open = 1;
         php_pdo_stmt_set_column_count(stmt, num_columns);
     } else {
-        return_on_err_stmt(MimerExecute(stmt_handle->statement), 0)
+        return_on_err_stmt(MimerExecute(mimer_stmt->statement), 0)
     }
 
     return 1;
@@ -116,10 +101,6 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
     MimerStatement *statement = &mimer_stmt->statement;
     int32_t fetch_op_mode = MIMER_NEXT;
     MimerError return_code;
-
-    if (stmt->executed) {
-        return_on_err_stmt(pdo_mimer_stmt_open_cursor(mimer_stmt), 0)
-    }
 
     /* map PDO fetch orientation to MimerFetchScroll operation mode */
     switch (ori) {
@@ -644,7 +625,8 @@ static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
 static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
     pdo_mimer_stmt *stmt_handle = stmt->driver_data;
 
-    pdo_mimer_stmt_close_cursor(stmt_handle);
+    if (stmt_handle->cursor_open)
+        return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
 
     return 1;
 }

@@ -1,17 +1,20 @@
 --TEST--
-Mimer SQL (Connection): Connect to DB using DBname in DSN, username and password as args
+PDO Mimer (Connection): Connect to DB using DBname in DSN, username and password as args
 
 --EXTENSIONS--
 pdo_mimer
 
 --SKIPIF--
-<?php require('skipif.inc'); ?>
-
+<?php require_once 'pdo_mimer_test.inc';
+PDOMimerTest::skip();
+?>
 --FILE--
 <?php
-require("testdb.inc");
-$dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
-print "done"
+require 'pdo_mimer_test.inc';
+try {
+    $dbh = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
+} catch (PDOException $e) {
+    PDOMimerTest::error($e);
+}
 ?>
 --EXPECT--
-done

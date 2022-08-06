@@ -1,3 +1,9 @@
 <?php
-if (!getenv('PDO_MIMER_TEST_DSN')) die('skip: PDO_MIMER_TEST_DSN must be set');
-if (!extension_loaded('pdo') || !extension_loaded('pdo_mimer')) die('skip: not loaded');
+if (!extension_loaded('pdo') || !extension_loaded('pdo_mimer'))
+    die('skip: not loaded');
+
+function skipif(bool $failed, string $msg = ''): void {
+    if (!$failed)
+        return;
+    die('skip ' . ($msg ?: 'no reason given'));
+}
