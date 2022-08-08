@@ -9,7 +9,7 @@ PDOMimerTest::skipif(PDO_MIMER_TEST_SKIP_OSUSER);
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 try {
-    $dbh = new PDOMimerTest('dbname=' . PDOMimerTest::getDBName());
+    $db = new PDOMimerTest('dbname=' . PDOMimerTest::getDBName());
 } catch (PDOException $e) {
     print PDOMimerTest::error($e);
 }

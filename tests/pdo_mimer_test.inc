@@ -152,14 +152,6 @@ class Column extends Struct {
             return $value[$row-1];
         return null;
     }
-    public function bindValue(PDOStatement $stmt, int $row = 1, int $position = null): PDOStatement {
-        $stmt->bindValue($position ?: $this->param, $this->value($row), $this->pdo_type);
-        return $stmt;
-    }
-    public function bindColumn(PDOStatement $stmt, &$var, int $position = null): PDOStatement {
-        $stmt->bindColumn($position ?: $this->name, $var, $this->pdo_type);
-        return $stmt;
-    }
     public function __get($key) {
         switch ($key) {
             case TYPE:
@@ -273,6 +265,10 @@ class PDOMimerTest extends PDO {
     }
     public static function error(PDOException $e): void {
         [, $code, $msg] = $e->errorInfo;
+        if (0 <= $code) {
+            $substr = substr($e->getMessage(), strlen("SQLSTATE[HYXXX][-"));
+            $code = (int)substr($substr, 0, strpos($substr, ']'));
+        }
         print "[$code]: $msg";
     }
     public static function table(): Table {
@@ -304,8 +300,10 @@ class PDOMimerTest extends PDO {
         foreach ($tables as $table) {
             if (is_array($table))
                 $table = $table[NAME];
-            if ($this->hasTable($table))
-                $this->exec("DROP TABLE $table") and $num_dropped_tables++;
+            if ($this->hasTable($table)) {
+                $this->exec("DROP TABLE $table");
+                $num_dropped_tables++;
+            }
         }
 
         $this->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

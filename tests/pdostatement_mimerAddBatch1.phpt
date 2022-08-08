@@ -12,9 +12,11 @@ try {
     $db->exec("CREATE TABLE $table ($column $type)");
     $stmt = $db->prepare("INSERT INTO $table ($column) VALUES (?)");
 
-    foreach ($values as $i => $value)
-        $stmt->bindValue(1, $value, $pdo_type) &&
-            ++$i < count($values) && $stmt->mimerAddBatch();
+    foreach ($values as $i => $value) {
+        $stmt->bindValue(1, $value, $pdo_type);
+        if (++$i < count($values))
+             $stmt->mimerAddBatch();
+    }
     $stmt->execute();
 
     foreach ($db->query("SELECT $column FROM $table", PDO::FETCH_ASSOC) as $i => $row)

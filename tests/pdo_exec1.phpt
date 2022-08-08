@@ -9,9 +9,10 @@ PDOMimerTest::skip();
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract(false));
+
 try {
     $db = new PDOMimerTest(false);
-    if (($dropped = $db->dropTables()) !== $rows)
+    if (($dropped = $db->exec("DELETE FROM $table")) !== $rows)
         die("num dropped rows doesn't match num inserted rows: [dropped => $dropped, inserted => $rows]");
 } catch (PDOException $e) {
     PDOMimerTest::error($e);

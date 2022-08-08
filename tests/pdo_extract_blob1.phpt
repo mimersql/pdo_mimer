@@ -1,6 +1,5 @@
 --TEST--
 PDO Mimer (LOB): extracting a small blob from database
-
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
@@ -8,26 +7,27 @@ PDOMimerTest::skip();
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
+$blob = new Column('blob', [TYPE => 'BLOB']);
 
+$fp = tmpfile();
+$bin_str = pack('C*', 0, 255, 47);
+fwrite($fp, $bin_str);
+rewind($fp);
 try {
-    $bin_str = pack('C*', 0, 255, 47);
-    fwrite($fp = tmpfile(), $bin_str);
-    rewind($fp);
-
-    $db = new PDOMimerTest(false);
-    $blob = new Column('blob', [TYPE => 'BLOB'], [TYPE => PDO::PARAM_LOB, VALUES => [$fp]]);
+    $db = new PDOMimerTest(null);
     $db->createTables(new Table($table, [$id, $blob]));
 
-    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, $blob->param)");
-    $blob->bindValue($stmt)->execute();
+    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, :$blob)");
+    $stmt->bindValue(":$blob", $fp, PDO::PARAM_LOB);
+    $stmt->execute();
     fclose($fp);
 
     $stmt = $db->query("SELECT $blob FROM $table FETCH 1");
-    $blob->bindColumn($stmt, $lob)->fetch(PDO::FETCH_BOUND);
+    $stmt->bindColumn("$blob", $lob, PDO::PARAM_LOB);
+    $stmt->fetch(PDO::FETCH_BOUND);
 
     $bin_str = fread($lob, 3);
     var_dump(unpack("C*", $bin_str));
-
 } catch (PDOException $e) {
     PDOMimerTest::error($e);
 }

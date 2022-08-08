@@ -10,7 +10,7 @@ PDOMimerTest::skip();
 <?php
 require 'pdo_mimer_test.inc';
 try {
-    $dbh = new PDO("mimer:non-existing-option=val", PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
+    $db = new PDO("mimer:non-existing-option=val", PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
 } catch (PDOException $e) {
     print PDOMimerTest::error($e);
 }

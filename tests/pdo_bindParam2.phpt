@@ -1,9 +1,5 @@
 --TEST--
 PDO Mimer (bindParam): bind positional placeholders
-
---EXTENSIONS--
-pdo_mimer
-
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
@@ -20,6 +16,12 @@ try {
 
     foreach($values as $value)
         $stmt->execute();
+    $stmt = null;
+
+    $result = $db->query("SELECT $column FROM $table")->fetch(PDO::FETCH_NUM);
+    foreach ($result as $i => $val)
+        if (($fetched = $result[$i]) !== ($inserted = $values[$i]))
+            die("fetched value did not match inserted value: fetched($fetched) != inserted($inserted)");
 } catch (PDOException $e) {
     PDOMimerTest::error($e);
 }
