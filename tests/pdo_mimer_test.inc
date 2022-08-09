@@ -263,13 +263,19 @@ class PDOMimerTest extends PDO {
             ],
         ]);
     }
-    public static function error(PDOException $e): void {
-        [, $code, $msg] = $e->errorInfo;
+    public static function error(PDOException $e): string {
+        if (2 >= count($e->errorInfo)) {
+            print $msg = $e->getMessage();
+            return $msg;
+        }
+
+        [, $code, $err_msg] = $e->errorInfo;
         if (0 <= $code) {
             $substr = substr($e->getMessage(), strlen("SQLSTATE[HYXXX][-"));
             $code = (int)substr($substr, 0, strpos($substr, ']'));
         }
-        print "[$code]: $msg";
+        print $msg = "[$code]: $err_msg";
+        return $msg;
     }
     public static function table(): Table {
         return self::$table;
