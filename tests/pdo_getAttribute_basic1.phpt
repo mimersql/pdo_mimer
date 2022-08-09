@@ -2,13 +2,8 @@
 PDO Mimer(getAttribute): getting the generic attributes
 
 --DESCRIPTION--
-Test currently throws exception when trying to get value for an
-unsupported attribute. 
-
-TBD:
-1. Which of the generic attributes should be supported. 
-2. Should getAttribute raise exception or return null for 
-    non-supported attributes. 
+This test is WIP pending discussion on exception vs. null-returning 
+behaviour. See issue #65. 
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
@@ -19,27 +14,19 @@ PDOMimerTest::skip();
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
 
-$gen_attributes = array(  
-    PDO::ATTR_AUTOCOMMIT,
-    PDO::ATTR_CASE,
-    PDO::ATTR_CLIENT_VERSION,
-    PDO::ATTR_CONNECTION_STATUS,
-    PDO::ATTR_DRIVER_NAME,
-    PDO::ATTR_ERRMODE,
-    PDO::ATTR_ORACLE_NULLS,
-    PDO::ATTR_PERSISTENT,
-    PDO::ATTR_PREFETCH,
-    PDO::ATTR_SERVER_INFO,
-    PDO::ATTR_SERVER_VERSION,
-    PDO::ATTR_TIMEOUT
+$attributes = array(
+    "AUTOCOMMIT","ERRMODE", "CASE", "CLIENT_VERSION", "CONNECTION_STATUS",
+    "ORACLE_NULLS", "PERSISTENT", "PREFETCH", "SERVER_INFO", "SERVER_VERSION",
+    "TIMEOUT"
 );
 
 try {
     $db = new PDOMimerTest(null);
-   
-    foreach ($gen_attributes as $atr)
-        if ($db->getAttribute($atr) === null)
-            die("Could not get attribute");
+
+    foreach ($attributes as $val) {
+        if($db->getAttribute(constant("PDO::ATTR_$val")) === null)
+            print("Could not get attribute PDO::ATTR_$val" . "\n");
+    }
 
 } catch (PDOException $e) {
     die($e->getMessage());
