@@ -1,9 +1,11 @@
 --TEST--
 PDO Mimer (stmt-mimerAddBatch): MimerAddBatch called from PDOStatement instance
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
@@ -26,4 +28,5 @@ try {
     print PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--

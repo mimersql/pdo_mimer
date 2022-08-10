@@ -1,9 +1,11 @@
 --TEST--
 PDO Mimer (LOB): extracting a small blob from database
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
@@ -32,6 +34,7 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--
 array(3) {
   [1]=>

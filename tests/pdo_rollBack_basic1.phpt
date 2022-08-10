@@ -29,4 +29,5 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--
