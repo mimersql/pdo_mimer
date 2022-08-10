@@ -42,4 +42,5 @@ try {
     die($e->getMessage());
 }
 ?>
+
 --EXPECT--

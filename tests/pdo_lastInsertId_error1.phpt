@@ -26,5 +26,6 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECTF--
 SQLSTATE[%s]: %s

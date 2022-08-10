@@ -1,12 +1,15 @@
 --TEST--
 PDO Mimer (LOB): inserting a small blob from file into the database
+
 --DESCRIPTION--
 Inserts a blob of just a few bytes and validates that the correct number
 of bytes was inserted. Does not validate content of inserted bytes.
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
@@ -38,4 +41,5 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--

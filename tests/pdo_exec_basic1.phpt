@@ -1,11 +1,14 @@
 --TEST--
 PDO Mimer(doer): Num affected rows
+
 --DESCRIPTION--
 Tests that PDO::exec returns the correct number of affected rows.
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract(false));
@@ -18,6 +21,7 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--
 
 --XFAIL--

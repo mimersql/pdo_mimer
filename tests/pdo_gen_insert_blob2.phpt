@@ -1,15 +1,18 @@
 --TEST--
 PDO Mimer (LOB): inserting a blob larger than available process memory
+
 --DESCRIPTION--
 The purpose of this test is to verify that the PDO driver is reading in
 the LOB data in chunks, instead of trying to allocate a buffer to hold
 the entire data before inserting it into DB.
 
 Validates the number but not content of inserted bytes.
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
@@ -38,4 +41,5 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--

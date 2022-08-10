@@ -1,12 +1,15 @@
 --TEST--
 PDO Mimer (LOB): inserting a memory-exceeding clob from UTF8 encoded file
+
 --DESCRIPTION--
 Inserts the content of a UTF-8 encoded file larger than available process memory
 and verifies the number of inserted characters (but not the content).
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
@@ -40,4 +43,5 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--

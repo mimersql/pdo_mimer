@@ -1,9 +1,11 @@
 --TEST--
 PDO Mimer (Connection): Connect to non-existing DB
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 try {
@@ -12,5 +14,6 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECTF--
 [-%d]: %s

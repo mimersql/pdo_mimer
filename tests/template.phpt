@@ -1,11 +1,14 @@
 --TEST--
 PDO Mimer(TODO function): TODO Subject
+
 --DESCRIPTION--
 TODO description
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
@@ -17,4 +20,5 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--

@@ -1,9 +1,11 @@
 --TEST--
 PDO Mimer (Connection): Connect to DB using DBname in DSN, username and password as args
+
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
 ?>
+
 --FILE--
 <?php
 require 'pdo_mimer_test.inc';
@@ -13,4 +15,5 @@ try {
     PDOMimerTest::error($e);
 }
 ?>
+
 --EXPECT--
