@@ -126,9 +126,7 @@ class Column extends Struct {
         if ($data) {
             if (!array_key_exists(PARAM, $data))
                 $data[PARAM] = ":$name";
-            foreach ($data[VALUES] as &$value)
-                if (is_string($value))
-                    $value = "'$value'";
+            
             $array += [DATA => $data];
         }
         parent::__construct($array);
@@ -333,6 +331,10 @@ class PDOMimerTest extends PDO {
                 extract($data);
                 if (isset($pdo_type))
                     $type = $pdo_type;
+                foreach ($values as &$val){
+                    if (is_string($val))
+                        $val = "'$val'";
+                }
                 return [NAME => $name, TYPE => $type, VALUES => $values];
             }
             return $column;
