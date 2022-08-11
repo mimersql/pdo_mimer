@@ -236,9 +236,9 @@ class PDOMimerTest extends PDO {
             return substr(PDO_MIMER_TEST_DSN, $dbname_pos + $dbname_len);
         return substr(PDO_MIMER_TEST_DSN, $dbname_pos + $dbname_len, $dbname_end_pos);
     }
-    public static function init(): void {
+    public static function makeExTableStd(): void {
         self::$table = new Table([
-             NAME    => 'pdo_mimer_test',
+             NAME    => 'pdo_mimer_test_std',
              ROWS    => 5,
              COLUMNS => [[
                  NAME       => 'id',
@@ -257,6 +257,31 @@ class PDOMimerTest extends PDO {
                  ], DATA     => [
                  TYPE   => PDO::PARAM_STR,
                  VALUES => ['A', 'B', 'C', 'D', 'E',],
+             ],]
+            ],
+        ]);
+    }
+    public static function makeExTablePerson(): void {
+        self::$table = new Table([
+             NAME    => 'pdo_mimer_test_person',
+             ROWS    => 3,
+             COLUMNS => [[
+                 NAME       => 'id',
+                 DEFINITION => [
+                     TYPE     => 'integer',
+                     NOT_NULL => true,
+                     KEY      => PRIMARY,
+                 ], DATA => [
+                 TYPE   => PDO::PARAM_INT,
+                 VALUES => [1, 2, 3,],
+             ],],[
+                 NAME       => 'name',
+                 DEFINITION => [
+                     TYPE     => 'varchar(20)',
+                     NOT_NULL => true,
+                 ], DATA     => [
+                 TYPE   => PDO::PARAM_STR,
+                 VALUES => ['Alice', 'Bob', 'Clarice',],
              ],]
             ],
         ]);
@@ -404,4 +429,4 @@ class PDOMimerTest extends PDO {
     }
 
 }
-PDOMimerTest::init();
+PDOMimerTest::makeExTableStd();
