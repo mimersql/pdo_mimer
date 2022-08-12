@@ -11,7 +11,7 @@ PDOMimerTest::skip();
 
 --FILE--
 <?php
-require 'pdo_mimer_test.inc';
+require_once 'pdo_mimer_test.inc';
 try {
     $db = new PDO("mimer:non-existing-option=val", PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
 } catch (PDOException $e) {

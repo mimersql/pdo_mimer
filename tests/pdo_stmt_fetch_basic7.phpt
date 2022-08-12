@@ -11,7 +11,7 @@ PDOMimerTest::skip();
 ?>
 
 --FILE--
-<?php include 'pdo_mimer_test.inc';
+<?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::makeExTableStd();
 extract(PDOMimerTest::extract());
 

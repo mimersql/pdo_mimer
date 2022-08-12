@@ -10,7 +10,7 @@ PDOMimerTest::skip();
 ?>
 
 --FILE--
-<?php include 'pdo_mimer_test.inc';
+<?php require_once 'pdo_mimer_test.inc';
 extract(PDOMimerTest::extract());
 try {
     $db = new PDOMimerTest(true);

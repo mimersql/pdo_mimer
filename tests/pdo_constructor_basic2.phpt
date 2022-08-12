@@ -8,7 +8,7 @@ PDOMimerTest::skip();
 
 --FILE--
 <?php
-require 'pdo_mimer_test.inc';
+require_once 'pdo_mimer_test.inc';
 try {
     $db = new PDO(PDO_MIMER_TEST_DSN, PDO_MIMER_TEST_USER, PDO_MIMER_TEST_PASS);
 } catch (PDOException $e) {
