@@ -282,7 +282,15 @@ class PDOMimerTest extends PDO {
                  ], DATA     => [
                  TYPE   => PDO::PARAM_STR,
                  VALUES => ['Alice', 'Bob', 'Clarice',],
-             ],]
+             ],],[
+                NAME       => 'lastname',
+                DEFINITION => [
+                    TYPE     => 'varchar(20)',
+                    NOT_NULL => true,
+                ], DATA     => [
+                TYPE   => PDO::PARAM_STR,
+                VALUES => ['Johnson', 'Manson', 'Miller',],
+            ],]
             ],
         ]);
     }
