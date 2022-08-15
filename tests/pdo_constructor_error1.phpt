@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (Connection): Connect to non-existing DB
+PDO Mimer(Constructor): Connect to non-existing DB
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
@@ -16,4 +16,6 @@ try {
 ?>
 
 --EXPECTF--
-[-%d]: %s
+
+--XFAIL--
+Expected error message is TBD. See issue #75. 

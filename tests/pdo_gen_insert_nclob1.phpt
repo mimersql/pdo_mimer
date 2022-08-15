@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (LOB): inserting a memory-exceeding nclob from UTF8 encoded file
+PDO Mimer(LOB): inserting a memory-exceeding nclob from UTF8 encoded file
 
 --DESCRIPTION--
 Inserts the content of a UTF-8 encoded file larger than available process memory

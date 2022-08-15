@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(doer): Num affected rows
+PDO Mimer(exec): Num affected rows
 
 --DESCRIPTION--
 Tests that PDO::exec returns the correct number of affected rows.

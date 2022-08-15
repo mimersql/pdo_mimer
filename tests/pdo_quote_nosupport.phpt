@@ -1,9 +1,8 @@
 --TEST--
-PDO Mimer(quote): quote not supported 
+PDO Mimer(quote): not supported 
 
 --DESCRIPTION--
-Driver does not currently support quote. This test 
-verifies the behaviour when user tries calling it. 
+Tests that usage of non-supported function throws exception with error message.
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
@@ -27,6 +26,4 @@ try {
 ?>
 
 --EXPECT--
-
---XFAIL-- 
-Expected behaviour is TBD
+SQLSTATE[IM001]: Driver does not support this function: driver does not support quoting

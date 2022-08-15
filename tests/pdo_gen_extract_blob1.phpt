@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (LOB): extracting a small blob from database
+PDO Mimer(LOB): extracting a small blob from database
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (Connection): Connect to DB with invalid DSN option
+PDO Mimer(Constructor): Connect to DB with invalid DSN option
 
 --DESCRIPTION--
 Intended behaviour by PDO seems to be to ignore invalid DSN options.

@@ -1,12 +1,6 @@
 --TEST--
 PDO Mimer(setAttribute): setting generic attributes
 
---DESCRIPTION--
-Verifies that attribute values set by user get successfully registered.
-
-WIP: Only tests some of the generic attributes. Must discuss which
-attributes we can support. 
-
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
@@ -44,3 +38,6 @@ try {
 ?>
 
 --EXPECT--
+
+--XFAIL--
+Must discuss which attributes we can support setting, see issue #66. 

@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (Connection): Connect to DB with incorrect PW
+PDO Mimer(Constructor): Connect to DB with incorrect PW
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
@@ -16,5 +16,7 @@ try {
 }
 ?>
 
---EXPECTF--
-[%d]: %s
+--EXPECT--
+
+--XFAIL-- 
+Expected error message is TBD. See issue #76.

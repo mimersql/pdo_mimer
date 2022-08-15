@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetch): Fetching using PDO::FETCH_NUM
+PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_NUM
 
 --DESCRIPTION--
 Should fetch each row as a 0-indexed array. Test verifies 

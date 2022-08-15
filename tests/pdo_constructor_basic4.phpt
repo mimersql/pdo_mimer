@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(OS_USER): Connect to DB without dbname, user, or pass
+PDO Mimer(Constructor): Connect to DB without dbname, user, or pass
 
 --DESCRIPTION--
 Requires local, default database with OS_USER ident setup

@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetch): Fetching using PDO::FETCH_BOTH
+PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_BOTH
 
 --DESCRIPTION--
 Tests that the fetched array has the correct format and values.

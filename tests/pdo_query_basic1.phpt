@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (query): fetching a result set
+PDO Mimer(query): fetching a result set
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

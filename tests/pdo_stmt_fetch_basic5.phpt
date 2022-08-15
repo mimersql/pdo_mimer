@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetch): Fetching using PDO::FETCH_OBJ
+PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_OBJ
 
 --DESCRIPTION--
 Tests that a anonymous class is created 

@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (LOB): inserting a small blob from file into the database
+PDO Mimer(LOB): inserting a small blob from file into the database
 
 --DESCRIPTION--
 Inserts a blob of just a few bytes and validates that the correct number

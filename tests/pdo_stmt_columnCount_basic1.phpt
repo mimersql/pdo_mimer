@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-columnCount): count columns in result set
+PDO Mimer(stmt-columnCount): count columns in result set
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

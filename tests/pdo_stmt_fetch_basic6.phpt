@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetch): Fetching using PDO::FETCH_LAZY
+PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_LAZY
 
 --DESCRIPTION--
 Tests that PDO::FETCH_LAZY fetches data into 

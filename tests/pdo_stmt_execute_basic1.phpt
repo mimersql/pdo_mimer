@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-execute): execute with multiple named placeholders
+PDO Mimer(stmt-execute): execute with multiple named placeholders
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

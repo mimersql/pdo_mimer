@@ -1,10 +1,6 @@
 --TEST--
 PDO Mimer(getAttribute): getting the generic attributes
 
---DESCRIPTION--
-This test is WIP pending discussion on exception vs. null-returning 
-behaviour. See issue #65. 
-
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
 PDOMimerTest::skip();
@@ -34,3 +30,7 @@ try {
 ?>
 
 --EXPECT--
+
+--XFAIL-- 
+This test is WIP pending discussion on exception vs. null-returning 
+behaviour. See issue #65. 

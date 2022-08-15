@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-mimerAddBatch): MimerAddBatch called from PDOStatement instance
+PDO Mimer(stmt-mimerAddBatch): MimerAddBatch called from PDOStatement instance
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

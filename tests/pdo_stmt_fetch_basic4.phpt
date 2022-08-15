@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetch): Fetching using PDO::FETCH_INTO
+PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_INTO
 
 --DESCRIPTION--
 Tests that the fetched data correctly updates 

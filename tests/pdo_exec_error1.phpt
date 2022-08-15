@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(doer): Error on executing a 'SELECT' statement
+PDO Mimer(exec): Error on executing a 'SELECT' statement
 
 --DESCRIPTION--
 Tests that PDO::exec triggers error with result set statement
@@ -21,5 +21,7 @@ try {
 }
 ?>
 
---EXPECTF--
-[-%d]: %s
+--EXPECT--
+
+--XFAIL-- 
+Expected error message is TBD. See issue #77.

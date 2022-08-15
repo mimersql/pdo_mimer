@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-bindValue): bind named placeholder
+PDO Mimer(stmt-bindValue): bind named placeholder
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

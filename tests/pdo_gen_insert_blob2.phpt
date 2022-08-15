@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (LOB): inserting a blob larger than available process memory
+PDO Mimer(LOB): inserting a blob larger than available process memory
 
 --DESCRIPTION--
 The purpose of this test is to verify that the PDO driver is reading in

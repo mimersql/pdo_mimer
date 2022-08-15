@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetchObject): Fetch next row as object
+PDO Mimer(stmt-fetchObject): Fetch next row as object
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

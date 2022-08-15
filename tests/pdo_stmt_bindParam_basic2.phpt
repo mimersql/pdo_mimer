@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-bindParam): bind positional placeholders
+PDO Mimer(stmt-bindParam): bind positional placeholders
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

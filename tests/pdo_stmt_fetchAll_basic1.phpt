@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetchAll): Fetch all remaining rows
+PDO Mimer(stmt-fetchAll): Fetch all remaining rows
 
 --DESCRIPTION--
 Tests that a call to fetchAll fetches all remaining rows

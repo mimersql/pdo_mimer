@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (Connection): Connect to DB using DBname in DSN, username and password as args
+PDO Mimer(Constructor): Connect to DB using DBname in DSN, username and password as args
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

@@ -1,8 +1,8 @@
 --TEST--
-PDO Mimer(lastInsertId): calling function raises exception
+PDO Mimer(lastInsertId): not supported
 
 --DESCRIPTION--
-Currently not supported.
+Tests that usage of non-supported function throws exception with error message.
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';
@@ -27,5 +27,5 @@ try {
 }
 ?>
 
---EXPECTF--
-SQLSTATE[%s]: %s
+--EXPECT--
+SQLSTATE[IM001]: Driver does not support this function: driver does not support lastInsertId()

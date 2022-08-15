@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-closeCursor): re-using result set statements
+PDO Mimer(stmt-closeCursor): re-using result set statements
 
 --DESCRIPTION--
 When trying to re-use a prepared statement that has a result set

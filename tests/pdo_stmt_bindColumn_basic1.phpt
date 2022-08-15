@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-bindColumn): 
+PDO Mimer(stmt-bindColumn): 
 
 --DESCRIPTION--
 Binds a different variable to each column in test table, 

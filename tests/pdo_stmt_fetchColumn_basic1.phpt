@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetchColumn): Fetch one column from next row
+PDO Mimer(stmt-fetchColumn): Fetch one column from next row
 
 --SKIPIF--
 <?php require_once 'pdo_mimer_test.inc';

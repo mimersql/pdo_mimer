@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer (stmt-fetch): Fetching using PDO::FETCH_ASSOC
+PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_ASSOC
 
 --DESCRIPTION--
 Fetches each row in test table as an associative array and verifies 

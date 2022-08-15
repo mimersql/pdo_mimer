@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(DSN2): Connect to DB using only DB name
+PDO Mimer(Constructor): Connect to DB using only DB name
 
 --DESCRIPTION--
 Requires local, default database with OS_USER ident setup.
