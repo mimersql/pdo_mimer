@@ -1,30 +1,39 @@
 --TEST--
-PDO Mimer(stmt-fetchObject): Fetch next row as object
+PDO Mimer(stmt-fetchObject): Fetching next row as object
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::makeExTablePerson();
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_person");
+$dsn = $util->getFullDSN();
+$tblName = "person";
+$tbl = $util->getTable($tblName);
 
 try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->query("SELECT * FROM $table");
-
-    $rowcnt = 1;
-    while($person = $stmt->fetchObject()){
-        if($person->id !== $id->value($rowcnt) || 
-            $person->name !== $name->value($rowcnt))
-            die("Value in class member differs from test data");
-        $rowcnt++;
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT * FROM $tblName");
+    
+    $rows = $tbl->getRows();
+    foreach($rows as $rowVals){
+        $person = $stmt->fetchObject();
+        foreach($rowVals as $colName => $colVal){
+            $fetched = $person->$colName;
+            if ($fetched !== $colVal)
+                die("Column $colName: Fetched value ($fetched) differ ". 
+                    "from expected value ($colVal)\n");
+        }
     }
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

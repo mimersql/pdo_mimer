@@ -1,6 +1,10 @@
 --TEST--
 PDO Mimer(stmt-setAttribute): setting non-supported attributes
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --DESCRIPTION--
 Currently statements have no settable/gettable attributes. 
 This test verifies that the usage of the function throws an exception
@@ -9,26 +13,28 @@ and one check at the start of the range where any potential driver specific
 attribute constants would be.
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic");
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+
 $max_pdo_attr_const_val = 21;
 $start_of_driver_specific = 1000;
 
-$db = new PDOMimerTest(true);
-$stmt = $db->query("SELECT * FROM $table");
+$db = new PDO($dsn);
+$stmt = $db->query("SELECT * FROM $tblName");
 
 // Test getting all generic attribute constants
 for ($i = 0; $i <= $max_pdo_attr_const_val; $i++){
     try {
         $stmt->setAttribute($i, 0);
     } catch (PDOException $e) {
-        PDOMimerTest::error($e);
-        print "\n";
+        print $e->getMessage() . "\n";
     }
 }
 
@@ -36,7 +42,7 @@ for ($i = 0; $i <= $max_pdo_attr_const_val; $i++){
 try{
     $stmt->setAttribute($start_of_driver_specific, 0);
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

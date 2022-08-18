@@ -1,42 +1,64 @@
 --TEST--
-PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_CLASS
+PDO Mimer(stmt-fetch): Using PDO::FETCH_BOTH
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --DESCRIPTION--
-Tests that the fetched data is correctly inserted into 
-the members of a user defined class. 
+Verifies that:
+1. fetch() returns an array of values indexed by both
+    column name and column index
+2. that the values are as expected (same as test data)
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::makeExTablePerson();
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_allTypes");
+$tables = $util->getTablesExcept(["lob"]);
+$util->testEachTable($tables, 'test');
 
-class Person
-{
-    public $id;
-    public $name;
-}
+function test($table, $dsn): ?string {
+    try {
+        $db = new PDO($dsn);
+        $rowVals_assoc = $table->getRow(0);
+        $rowVals_idx = array_values($rowVals_assoc);
+        $rowVals = array_merge($rowVals_assoc, $rowVals_idx);
+        $tblName = $table->getName();
+        $stmt = $db->query("SELECT * FROM $tblName WHERE id = 1");
+        $fetched = $stmt->fetch(PDO::FETCH_BOTH);
 
-try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->query("SELECT * FROM $table");
-    $stmt->setFetchMode(PDO::FETCH_CLASS, 'Person');
+        if(($act = count($fetched)) !== ($exp = count($rowVals)))
+            return "Number of elements in result set ($act) differ from expected ($exp)\n";
 
-    $rowcnt = 1;
-    while($person = $stmt->fetch()){
-        if($person->id !== $columns[0]->value($rowcnt) || 
-            $person->name !== $columns[1]->value($rowcnt))
-            die("Value in class member differs from test data");
-        $rowcnt++;
+        foreach(array_keys($rowVals) as $key)
+            if(!array_key_exists($key, $fetched))
+                return "Array key $key does not exist in fetched array";
+
+        foreach($fetched as $key => $val) {
+            if($val !== ($exp = $rowVals[$key]))
+                return "Column key $key: Fetched value ($val) differ from expected ($exp)";
+        }
+        
+        return null;
+
+    } catch (PDOException $e) {
+        return $e->getMessage();
     }
-
-} catch (PDOException $e) {
-    PDOMimerTest::error($e);
 }
+
 ?>
 
 --EXPECT--
+Testing table integer... OK
+Testing table floating_point... OK
+Testing table string... OK
+Testing table national_string... OK
+Testing table binary... OK
+Testing table datetime... OK
+Testing table interval... OK
+Testing table boolean... OK

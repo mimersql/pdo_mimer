@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(query): create statement with result set
+PDO Mimer(prepare): false when using placeholder for column or table name
 
 --EXTENSIONS--
 pdo
@@ -15,17 +15,16 @@ PDOMimerTestUtil::commonSkipChecks();
 $util = new PDOMimerTestUtil("db_basic");
 $dsn = $util->getFullDSN();
 $tblName = "basic";
-$tbl = $util->getTable($tblName);
 
 try {
-    // Does it generate a statement object?
     $db = new PDO($dsn);
-    $stmt = $db->query("SELECT * FROM $tblName", PDO::FETCH_ASSOC);
-    if (!is_a($stmt, "PDOStatement"))
-        die("Query did not create a PDOStatement object");
+    $stmt = $db->prepare("SELECT ? FROM $tblName");
+    if ($stmt !== false)
+        die("Prepare did not return false for column name");
 
-    // Is the data correct? 
-    $tbl->verifyResultSet($stmt);
+    $stmt = $db->prepare("SELECT id FROM ?");
+    if ($stmt !== false)
+        die("Prepare did not return false for table name");
 
 } catch (PDOException $e) {
     print $e->getMessage();

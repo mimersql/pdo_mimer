@@ -1,17 +1,22 @@
 --TEST--
 PDO Mimer(inTransaction): correct behaviour before, during and after transaction
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil();
+$dsn = $util->getFullDSN();
+
 try {
-    $db = new PDOMimerTest(null);
-    $db->exec("CREATE TABLE $table ($column $type)");
+    $db = new PDO($dsn);
 
     if ($db->inTransaction())
         die("inTransaction gives true before starting transaction");
@@ -25,7 +30,7 @@ try {
         die("inTransaction gives true although transaction ended");
     
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

@@ -1,14 +1,19 @@
 --TEST--
 PDO Mimer(setAttribute): setting generic attributes
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic", false);
+$dsn = $util->getFullDSN();
 
 $attributes = array(
     "PDO::ATTR_CASE"                => PDO::CASE_LOWER,
@@ -20,7 +25,7 @@ $attributes = array(
 );
 
 try {
-    $db = new PDOMimerTest(null);
+    $db = new PDO($dsn);
 
     foreach ($attributes as $attr => $val) {
         if(!$db->setAttribute(constant($attr), $val))
@@ -33,7 +38,7 @@ try {
     }
 
 } catch (PDOException $e) {
-    die($e->getMessage());
+    print $e->getMessage();
 }
 ?>
 

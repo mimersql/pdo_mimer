@@ -2,22 +2,24 @@
 PDO Mimer(prepare): Create PDOStatement object from valid SQL 
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic");
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+
 try {
-    $db = new PDOMimerTest(true);
-    $sql = "SELECT $column FROM $table WHERE $column = $values[0]";
-    $stmt = $db->prepare($sql);
+    $db = new PDO($dsn);
+    $stmt = $db->prepare("SELECT * FROM $tblName");
     if (!is_a($stmt, "PDOStatement"))
         die("Prepare did not create a PDOStatement object");
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

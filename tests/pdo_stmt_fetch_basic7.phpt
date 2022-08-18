@@ -1,43 +1,52 @@
 --TEST--
-PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_NUM
+PDO Mimer(stmt-fetch): Using PDO::FETCH_CLASS
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --DESCRIPTION--
-Should fetch each row as a 0-indexed array. Test verifies 
-format and values of that array.
+Tests that the fetched data is correctly inserted into 
+the members of a user defined class. 
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::makeExTableStd();
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_person");
+$dsn = $util->getFullDSN();
+$tblName = "person";
+$tbl = $util->getTable($tblName);
+
+class Person
+{
+    public $id;
+    public $firstname;
+    public $lastname;
+    public $birthday;
+}
 
 try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->query("SELECT * FROM $table");
-
-    $rowcnt = 1;
-    while($row = $stmt->fetch(PDO::FETCH_NUM)){
-
-        if(count($row) !== count($columns))
-            die("Size of fetched row does not matched num. of columns in test table");
-
-        if (array_keys($row) !== range(0, count($columns)-1))
-            die("Fetched row keys do not match test table column indexes");
-
-        foreach($row as $i => $cell){
-            if ($cell !== $columns[$i]->value($rowcnt))
-                die("Fetched value differs from test table value");
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT * FROM $tblName");
+    $stmt->setFetchMode(PDO::FETCH_CLASS, 'Person');
+    
+    $rows = $tbl->getRows();
+    foreach($rows as $rowVals){
+        $person = $stmt->fetch();
+        foreach($rowVals as $colName => $colVal){
+            $fetched = $person->$colName;
+            if ($fetched !== $colVal)
+                die("Column $colName: Fetched value ($fetched) differ ". 
+                    "from expected value ($colVal)\n");
         }
-
-        $rowcnt++;
     }
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

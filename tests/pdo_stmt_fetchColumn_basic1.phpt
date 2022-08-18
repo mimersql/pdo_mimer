@@ -1,26 +1,33 @@
 --TEST--
 PDO Mimer(stmt-fetchColumn): Fetch one column from next row
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::makeExTableStd();
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic");
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+$tbl = $util->getTable($tblName);
+
 try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->query("SELECT * FROM $table");
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT * FROM $tblName");
 
-    $cell1 = $stmt->fetchColumn();
-
-    if ($cell1 !== $columns[0]->value(1))
-        die("Fetched value ($cell1) differ from test table value ({$columns[0]->value(1)})");
-    
+    $firstCol = $tbl->getAllColumns(false)[0];
+    foreach($firstCol->getValues() as $exp)
+        if(($val = $stmt->fetchColumn(0)) !== $exp)
+            die("Fetched value ($val) differ from test table value ($exp)\n");
+ 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

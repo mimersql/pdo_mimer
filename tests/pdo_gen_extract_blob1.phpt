@@ -1,46 +1,43 @@
 --TEST--
-PDO Mimer(LOB): extracting a small blob from database
+PDO Mimer(LOB): access BLOB as stream
+
+--EXTENSIONS--
+pdo
+pdo_mimer
+
+--DESCRIPTION--
+LOBs in DB are supposed to be accessed as a PHP stream.
+This test verifies that that is possible with BLOBs. 
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
-$blob = new Column('blob', [TYPE => 'BLOB']);
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_lobs");
+$dsn = $util->getFullDSN();
+$tblName = "lobs";
+$tbl = $util->getTable($tblName);
+$colName = "blobcol";
 
-$fp = tmpfile();
-$bin_str = pack('C*', 0, 255, 47);
-fwrite($fp, $bin_str);
-rewind($fp);
 try {
-    $db = new PDOMimerTest(null);
-    $db->createTables(new Table($table, [$id, $blob]));
-
-    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, :$blob)");
-    $stmt->bindValue(":$blob", $fp, PDO::PARAM_LOB);
-    $stmt->execute();
-    fclose($fp);
-
-    $stmt = $db->query("SELECT $blob FROM $table FETCH 1");
-    $stmt->bindColumn("$blob", $lob, PDO::PARAM_LOB);
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT $colName FROM $tblName FETCH 1");
+    $stmt->bindColumn(1, $lob, PDO::PARAM_LOB);
     $stmt->fetch(PDO::FETCH_BOUND);
+    
+    $binStr = fread($lob, 4); 
+    $hexStr = bin2hex($binStr);
+    
+    $expVal = dechex($tbl->getVal($colName, 0));
+    if($expVal !== $hexStr)
+      die("Expected value ($expVal) differ from retrieved value ($hexStr)");
 
-    $bin_str = fread($lob, 3);
-    var_dump(unpack("C*", $bin_str));
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 
 --EXPECT--
-array(3) {
-  [1]=>
-  int(0)
-  [2]=>
-  int(255)
-  [3]=>
-  int(47)
-}

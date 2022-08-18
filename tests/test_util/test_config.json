@@ -1,0 +1,10 @@
+{
+    "connection": {
+        "dsn": {
+            "dbname": "test_db",
+            "user": "SYSADM",
+            "password": "SYSADM"
+        }
+    },
+    "databankName": "pdo_tests" 
+}

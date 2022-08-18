@@ -1,30 +1,40 @@
 --TEST--
-PDO Mimer(stmt-execute): execute with multiple positional placeholders
+PDO Mimer(stmt-execute): indexed array as argument
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::makeExTablePerson();
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_person");
+$dsn = $util->getFullDSN();
+$tblName = "person";
+$tbl = $util->getTable($tblName);
+$rows = $tbl->getRows();
+
 try {
-    $db = new PDOMimerTest(true);
+    $db = new PDO($dsn);
+    $stmt = $db->prepare("SELECT id FROM $tblName WHERE firstname = (?) AND lastname = (?)");
 
-    $stmt = $db->prepare("SELECT id FROM $table WHERE name = (?) AND lastname = (?)");
-
-    for($i = 0; $i < $rows; $i++){
-        $stmt->execute(array($name->value($i+1), $lastname->value($i+1)));
-        $row = $stmt->fetch(PDO::FETCH_NAMED);
-        if($row['id'] !== $id->value($i+1))
-            die("Fetched value ({$row['id']}) did not match test table value ({$id->value($i+1)})");
+    foreach($rows as $i => $row) {
+        $fname = $row['firstname'];
+        $lname = $row['lastname'];
+        $id = $row['id'];
+        $stmt->execute(array($fname, $lname));
+        $res = $stmt->fetch(PDO::FETCH_NAMED);
+        if($res['id'] !== $id)
+            die("Fetched value ({$res['id']}) did not match test table value ($id)");
         $stmt->closeCursor();
     }
     
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

@@ -1,33 +1,44 @@
 --TEST--
 PDO Mimer(stmt-getIterator): get iterator to result set
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --DESCRIPTION--
 Uses function to retrieve a result set iterator, which is 
 then used to iterate through entire test table whilst
 verifying the values. 
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic");
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+$tbl = $util->getTable($tblName);
 
 try {
-    $db = new PDOMimerTest();
-    $stmt = $db->query("SELECT * FROM $table");
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT * FROM $tblName");
     $stmt->setFetchMode(PDO::FETCH_NUM);
     $it = $stmt->getIterator();
 
     foreach($it as $rowidx => $row)
-        foreach($row as $colidx => $val)
-            if($val !== ($exp = $columns[$colidx]->value($rowidx+1)))
-                die("In column {$columns[$colidx][NAME]}:\nExpected: $exp\nActual: $val");
+        foreach($row as $colidx => $val){
+            $colName = $tbl->getColumnName($colidx);
+            $expVal = $tbl->getVal($colName, $rowidx);
+            
+            if($val !== $expVal)
+                die("In column $colName:\nExpected: $expVal\nActual: $val");
+        }   
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

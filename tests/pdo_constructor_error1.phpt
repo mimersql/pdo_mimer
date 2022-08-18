@@ -1,17 +1,21 @@
 --TEST--
 PDO Mimer(Constructor): Connect to non-existing DB
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
+<?php require_once 'pdo_tests_util.inc';
 try {
     $db = new PDO("mimer:dbname=this-db-does-not-exist");
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

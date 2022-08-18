@@ -419,22 +419,5 @@ class PDOMimerTest extends PDO {
                 return null;
         }
     }
-    public static function skipif(bool $failed, string $msg = ''): void {
-        if (!$failed)
-            return;
-
-        if (!$msg)
-            if (PDO_MIMER_TEST_SKIP_OSUSER) $msg = 'os_user';
-
-        die('skip ' . ($msg ?: 'no reason given'));
-    }
-    public static function skip(): void {
-        try {
-            new self(false, false);
-        } catch (PDOException $e) {
-            die("skip $e");
-        }
-    }
-
+   
 }
-PDOMimerTest::makeExTableStd();

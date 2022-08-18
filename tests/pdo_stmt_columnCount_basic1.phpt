@@ -1,26 +1,35 @@
 --TEST--
 PDO Mimer(stmt-columnCount): count columns in result set
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic");
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+$tbl = $util->getTable($tblName);
+
 try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->prepare("SELECT * FROM $table");
+    $db = new PDO($dsn);
+    $stmt = $db->prepare("SELECT * FROM $tblName");
+
     if ($stmt->columnCount() !== 0)
         die("columnCount should return 0 before result set is available");
 
     $stmt->execute();
-    if ($stmt->columnCount() !== count($columns))
+    if ($stmt->columnCount() !== count($tbl->getAllColumns()))
         die("columnCount does not return correct number of columns");
 
 } catch (PDOException $e) {
-    print PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

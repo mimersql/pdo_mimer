@@ -1,5 +1,9 @@
 --TEST--
-PDO Mimer(LOB): inserting a blob larger than available process memory
+PDO Mimer(LOB): inserting a BLOB larger than available process memory
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --DESCRIPTION--
 The purpose of this test is to verify that the PDO driver is reading in
@@ -9,36 +13,54 @@ the entire data before inserting it into DB.
 Validates the number but not content of inserted bytes.
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
-$blob = new Column('blob', [TYPE => 'BLOB(10M)']);
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_lobs");
+$dsn = $util->getFullDSN();
+$tblName = "lobs";
+$colName = "blobcol";
+$nextID = $util->getNextTableID($tblName);
 
-// Generate binary data larger than available memory
-$fp = PDOMimerTest::createFile($filesize = PDOMimertest::limitMemory() + 10000, pack("C", 0xFF), 1);
 try {
-    // insert the blob data
-    $db = new PDOMimerTest(null);
-    $db->createTables(new Table($table, [$id, $blob]));
+    // Put test data in file
+    $tstnum = 0x61626364;
+    $binStr = pack('i', $tstnum);
+    $availableMem = $util::limitMemory();
+    $fileSize = $availableMem + 10000;
+    $fp = $util::createFile($fileSize, $binStr);
 
-    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, :$blob)");
-    $stmt->bindValue(":$blob", $fp, PDO::PARAM_LOB);
+    // Insert into DB from file
+    $db = new PDO($dsn);
+    $db->exec("ALTER TABLE $tblName ALTER COLUMN $colName SET DATA TYPE BLOB(10M)"); //increase size
+    $stmt = $db->prepare("INSERT INTO $tblName (id, $colName) VALUES ($nextID, :$colName)");
+    $stmt->bindValue(":$colName", $fp, PDO::PARAM_LOB);
     $stmt->execute();
-    fclose($fp);
+    rewind($fp);
 
-    // Verify number of inserted bytes
-    $res = $db->query("SELECT OCTET_LENGTH($blob) as ol FROM $table FETCH 1;")->fetch();
-    if ($res['ol'] != $filesize) {
-        print "Number of bytes in DB differ from number of bytes in input file.\n";
-        print "Bytes in DB: " . $res['ol'] . "\n";
-        print "Bytes in input file: " . $filesize . "\n";
-    }
+    // Verify value of inserted data
+    $stmt = $db->query("SELECT $colName FROM $tblName WHERE id = $nextID");
+    $stmt->bindColumn(1, $lob, PDO::PARAM_LOB);
+    $stmt->fetch(PDO::FETCH_BOUND);
+    
+    if (get_resource_type($lob) !== 'stream')
+        die("Bound variable is not a stream resource after fetch()");
+    if (empty(stream_get_contents($lob)))
+        die("Output stream has no content");
+        
+    /* 
+    TODO: Placeholder comparison whilst 
+    finding out why LOB extractions are not working.
+    */ 
+    while($tstByte = fread($fp, 1))
+        if($tstByte !== ($actByte = fread($lob, 1)))
+            die("Content of BLOB differ from test data");
+
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

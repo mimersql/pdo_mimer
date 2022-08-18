@@ -1,37 +1,50 @@
 --TEST--
 PDO Mimer(stmt-fetchAll): Fetch all remaining rows
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --DESCRIPTION--
 Tests that a call to fetchAll fetches all remaining rows
 and that the fetched values are as expected. 
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic");
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+$tbl = $util->getTable($tblName);
+
 try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->query("SELECT * FROM $table");
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT * FROM $tblName");
     
-    // Does it fetch all rows?
-    $rows = $stmt->fetchAll(PDO::FETCH_NUM);
+    // Rows left after fetchAll?
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if($stmt->fetch())
-        die("There were unfetched rows after call to fetchAll");
+        die("There were unfetched rows after call to fetchAll\n");
+
+    // Has expected number of rows?
+    if (($act = count($rows)) !== ($exp = $tbl->numberOfRows()))
+        die("fetchAll fetched $act rows, expected $exp rows\n");
 
     // Are the fetched values correct?
     foreach($rows as $i => $row){
-        foreach($columns as $j => $col){
-            if($row[$j] !== $col->value($i+1))
-                die("Value in fetched row differs from test table value");
+        foreach($row as $colName => $val){
+            if($val !== ($act = $tbl->getVal($colName, $i)))
+                die("Value in fetched row ($val) differ ".
+                    "from test table value ($act)\n");
         }
     }
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

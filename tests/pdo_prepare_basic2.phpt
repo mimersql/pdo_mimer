@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(query): create statement with result set
+PDO Mimer(prepare): Create PDOStatement object from SQL with positional placeholder
 
 --EXTENSIONS--
 pdo
@@ -15,17 +15,12 @@ PDOMimerTestUtil::commonSkipChecks();
 $util = new PDOMimerTestUtil("db_basic");
 $dsn = $util->getFullDSN();
 $tblName = "basic";
-$tbl = $util->getTable($tblName);
 
 try {
-    // Does it generate a statement object?
     $db = new PDO($dsn);
-    $stmt = $db->query("SELECT * FROM $tblName", PDO::FETCH_ASSOC);
+    $stmt = $db->prepare("SELECT * FROM $tblName WHERE id = ?");
     if (!is_a($stmt, "PDOStatement"))
-        die("Query did not create a PDOStatement object");
-
-    // Is the data correct? 
-    $tbl->verifyResultSet($stmt);
+        die("Prepare did not create a PDOStatement object");
 
 } catch (PDOException $e) {
     print $e->getMessage();

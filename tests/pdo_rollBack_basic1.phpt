@@ -1,32 +1,49 @@
 --TEST--
 PDO Mimer(rollBack): no changes to DB after rollBack
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_basic", false);
+$dsn = $util->getFullDSN();
+$tblName = "basic";
+
 try {
-    $db = new PDOMimerTest(null);
-    $db->exec("CREATE TABLE $table ($column $type)");
+    $db = new PDO($dsn);
+    $sql = "SELECT * FROM $tblName";
+
+    // Check table state before transaction
+    $nrows_before = count($db->query($sql)->fetchAll());
 
     $db->beginTransaction();
-    foreach ($values as $value){
-        $db->exec("INSERT INTO $table ($column) VALUES ($value)");
-    }
+
+    // Change table state
+    $dmlStmts = $util->getTableDML($tblName);
+    foreach ($dmlStmts as $stmt)
+        $db->exec($stmt);
+    
+    // Verify state change
+    $nrows_in = count($db->query($sql)->fetchAll());
+    if($nrows_in === $nrows_before)
+        die("Table state did not change");
+
     $db->rollback();
 
-    $result = $db->query("SELECT $column FROM $table");
-    $nrows = count($result->fetchAll(PDO::FETCH_COLUMN));
-
-    if ($nrows !== 0)
+    // Verify changes are reverted after rollback
+    $nrows_after = count($db->query($sql)->fetchAll());
+    if ($nrows_after !== $nrows_before)
         die ("Rollback did not revert changes");
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

@@ -1,34 +1,44 @@
 --TEST--
-PDO Mimer(stmt-fetch): Fetching using PDO::FETCH_LAZY
+PDO Mimer(stmt-fetch): Using PDO::FETCH_LAZY
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --DESCRIPTION--
 Tests that PDO::FETCH_LAZY fetches data into 
 anonymous object correctly. Does not test the lazy behaviour. 
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::makeExTablePerson();
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_person");
+$dsn = $util->getFullDSN();
+$tblName = "person";
+$tbl = $util->getTable($tblName);
 
 try {
-    $db = new PDOMimerTest(true);
-    $stmt = $db->query("SELECT * FROM $table");
+    $db = new PDO($dsn);
+    $stmt = $db->query("SELECT * FROM $tblName");
+    
+    $rows = $tbl->getRows();
+    foreach($rows as $rowVals){
+        $person = $stmt->fetch(PDO::FETCH_LAZY);
 
-    $rowcnt = 1;
-    while($person = $stmt->fetch(PDO::FETCH_LAZY)){
-        if($person->id !== $columns[0]->value($rowcnt) || 
-            $person->name !== $columns[1]->value($rowcnt))
-            die("Value in class member differs from test data");
-        $rowcnt++;
+        foreach($rowVals as $colName => $colVal){
+            $fetched = $person->$colName;
+            if ($fetched !== $colVal)
+                die("Column $colName: Fetched value ($fetched) differ ". 
+                    "from expected value ($colVal)\n");
+        }
     }
 
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 

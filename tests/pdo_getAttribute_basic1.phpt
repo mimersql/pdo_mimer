@@ -1,14 +1,20 @@
 --TEST--
 PDO Mimer(getAttribute): getting the generic attributes
 
+--EXTENSIONS--
+pdo
+pdo_mimer
+
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
+<?php require_once 'pdo_tests_util.inc';
+
+$util = new PDOMimerTestUtil();
+$dsn = $util->getFullDSN();
 
 $attributes = array(
     "AUTOCOMMIT","ERRMODE", "CASE", "CLIENT_VERSION", "CONNECTION_STATUS",
@@ -17,7 +23,7 @@ $attributes = array(
 );
 
 try {
-    $db = new PDOMimerTest(null);
+    $db = new PDO($dsn);
 
     foreach ($attributes as $val) {
         if($db->getAttribute(constant("PDO::ATTR_$val")) === null)
@@ -25,7 +31,7 @@ try {
     }
 
 } catch (PDOException $e) {
-    die($e->getMessage());
+    print $e->getMessage();
 }
 ?>
 

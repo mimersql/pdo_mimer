@@ -1,44 +1,57 @@
 --TEST--
-PDO Mimer(LOB): inserting a small blob from file into the database
+PDO Mimer(LOB): inserting a BLOB from file
+
+--EXTENSIONS--
+pdo
+pdo_mimer
 
 --DESCRIPTION--
-Inserts a blob of just a few bytes and validates that the correct number
-of bytes was inserted. Does not validate content of inserted bytes.
+Inserts a blob of just a few bytes and validates the content.
 
 --SKIPIF--
-<?php require_once 'pdo_mimer_test.inc';
-PDOMimerTest::skip();
+<?php require_once 'pdo_tests_util.inc';
+PDOMimerTestUtil::commonSkipChecks();
 ?>
 
 --FILE--
-<?php require_once 'pdo_mimer_test.inc';
-extract(PDOMimerTest::extract());
-$blob = new Column('blob', [TYPE => 'BLOB']);
+<?php require_once 'pdo_tests_util.inc';
+$util = new PDOMimerTestUtil("db_lobs");
+$dsn = $util->getFullDSN();
+$tblName = "lobs";
+$colName = "blobcol";
+$id = $util->getNextTableID($tblName);
 
-$tstnum = 0x61626364; //0x61-64 = a-d ASCII
-$bin_str = pack('i', $tstnum);
-$nbytes = strlen($bin_str);
-
-fwrite($fp = tmpfile(), $bin_str);
-rewind($fp);
 try {
-    $db = new PDOMimerTest(null);
-    $db->createTables(new Table($table, [$id, $blob]));
+    // Put test data in file
+    $tstnum = 0x61626364;
+    $binStr = pack('i', $tstnum);
+    fwrite($fp = tmpfile(), $binStr);
+    rewind($fp);
 
-    $stmt = $db->prepare("insert into $table ($id, $blob) values (1, :$blob)");
-    $stmt->bindValue(":$blob", $fp, PDO::PARAM_LOB);
+    // Insert into DB from file
+    $db = new PDO($dsn);
+    $stmt = $db->prepare("INSERT INTO $tblName (id, $colName) VALUES ($id, :$colName)");
+    $stmt->bindValue(":$colName", $fp, PDO::PARAM_LOB);
     $stmt->execute();
     fclose($fp);
 
-    // Verify number of inserted bytes
-    $res = $db->query("SELECT OCTET_LENGTH($blob) AS ol FROM $table FETCH 1")->fetch();
-    if ($res['ol'] != $nbytes) {
-        print "Number of bytes in DB differ from number of bytes in input file.\n";
-        print "Bytes in DB: " . $res['ol'] . "\n";
-        print "Bytes in input file: " . $nbytes . "\n";
+    // Verify value of inserted data
+    $stmt = $db->query("SELECT $colName FROM $tblName WHERE id = $id");
+    $stmt->bindColumn(1, $lob, PDO::PARAM_LOB);
+    $res = $stmt->fetch(PDO::FETCH_BOUND);
+    if (get_resource_type($lob) !== 'stream')
+        die("Bound variable is not a stream resource after fetch()");
+    if (empty(stream_get_contents($lob)))
+        die("Output stream has no content");
+
+    $binStr = fread($lob, 4); 
+    $blobAsInt = unpack('i', $binStr);
+    if ($blobAsInt !== $tstnum) {
+        die("Inserted valued ($tstnum) differ from fetched value ($blobAsInt)");
     }
+
 } catch (PDOException $e) {
-    PDOMimerTest::error($e);
+    print $e->getMessage();
 }
 ?>
 
