@@ -21,104 +21,32 @@
 #include <mimerapi.h>
 #include <mimerrors.h>
 
+typedef int32_t MimerErrorCode;
+
+typedef struct MimerError {
+    int persistent;
+    MimerErrorCode code;
+    char *msg;
+} MimerErrorInfo;
+
 /* the functions to call upon any error */
-extern int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, int line);
-#define pdo_mimer_error(dbh) _pdo_mimer_error(dbh, NULL, __FILE__, __LINE__)
-#define pdo_mimer_stmt_error(stmt) _pdo_mimer_error((stmt)->dbh, stmt, __FILE__, __LINE__)
+extern void pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char * FILE, int LINE);
+#define pdo_mimer_dbh_error() pdo_mimer_error(dbh, NULL, __FILE__, __LINE__)
+#define pdo_mimer_stmt_error() pdo_mimer_error(stmt->dbh, stmt, __FILE__, __LINE__)
 
-/**
- * @brief Macro function to handle a possible error which executes `fail_action` upon an error
- * @param return_code The return code to check against for errors
- * @param fail_action The action to take upon any error
- * @param ... Any extra statement to execute after the error function is called (eg. `return`)
- * @example @code handle_err(MimerExecute(statement), some_func(some_param), return -1) @endcode
- *      The output of `MimerExecute()` will be checked with `MIMER_SUCCEEDED()`. If evaluated to `false`,
- *      `some_func(some_param)` will be called and exits returning the value `-1`.
- * @example @code handle_err(MimerError mimer_error = MimerExecute(statement), pdo_mimer_error(dbh), return false) @endcode
- *      The output of `MimerExecute` will be saved to the variable `mimer_error` and is then checked with
- *      `MIMER_SUCCEEDED()`. If evaluated to `false`, `pdo_mimer_error()` is called and `false` is returned.
- * @see `handle_err_dbh()`
- * @see `handle_err_stmt()`
- * @see `return_on_err()`
- * @see `return_on_err_stmt()`
- * @remark The purpose of these macro functions is to make it easier to handle MimerAPI errors.
- */
-#define handle_err(return_code, fail_action, ...) \
-    if (!MIMER_SUCCEEDED((return_code))) {        \
-        fail_action;                              \
-        __VA_ARGS__;                              \
-    }
+extern void _pdo_mimer_custom_error(MimerErrorInfo*, const char[6], pdo_error_type, const char*, ...);
+#define pdo_mimer_custom_error(pdo_handle, sqlstate, errcode, format, ...)           \
+    do {                                                                             \
+        ((pdo_mimer_handle*)((pdo_handle)->driver_data))->error_info.code = errcode; \
+        _pdo_mimer_custom_error(                                                     \
+            &((pdo_mimer_handle*)((pdo_handle)->driver_data))->error_info,           \
+            sqlstate, (pdo_handle)->error_code, format __VA_OPT__(,) __VA_ARGS__);   \
+    } while(0)
 
-/**
- * @brief Macro function to check a return code for errors that expands `pdo_mimer_error(dbh)` upon failure.
- * @param return_code The return code from a `MimerAPI` function call to check
- * @remark Expands macro function `handle_err()`
- * @see `handle_err_stmt()`
- */
-#define handle_err_dbh(return_code) \
-    handle_err(return_code, pdo_mimer_error(dbh))
-
-/**
- * @brief Macro function to check a return code for errors that expands `pdo_mimer_stmt_error(stmt)` upon failure.
- * @param return_code The return code from a `MimerAPI` function call to check
- * @remark Expands macro function `handle_err()`
- * @see `handle_err_dbh()`
- */
-#define handle_err_stmt(return_code) \
-    handle_err(return_code, pdo_mimer_stmt_error(stmt))
-
-/**
- * @brief MMacro function to handle an error that expands `pdo_mimer_error(dbh)` upon error and returns
- *      the given return value.
- * @param return_code The return code from a `MimerAPI` function call to check
- * @param return_value The value to be returned upon failure.
- * @remark Expands macro function `handle_err()`
- * @see `return_on_err_stmt()`
- */
-#define return_on_err(return_code, return_value) \
-    handle_err(return_code, pdo_mimer_error(dbh), return (return_value))
-
-/**
- * @brief Macro function to handle an error that expands `pdo_mimer_stmt_error(stmt)`
- *      upon error and returns the given return value.
- * @param return_code The return code from a `MimerAPI` function call to check
- * @param return_value The value to be returned upon failure.
- * @remark Expands macro function `handle_err()`
- * @see `return_on_err()`
- */
-#define return_on_err_stmt(return_code, return_value) \
-    handle_err(return_code, pdo_mimer_stmt_error(stmt), return (return_value))
-
-/**
- * @brief Macro function to customize an error message
- * @param mimer_err_info_p A pointer to either the `pdo_mimer_handle` or `pdo_mimer_stmt`
- * @param err_msg A literal string of the error description
- * @param mim_errcode A native or custom MimerSQL error code
- * @param sqlstate A literal string with the SQLSTATE to be used by PDO
- * @param persistence A boolean value detailing if the error message should be persistent-allocated (`dbh->is_persistent)`
- * @param pdo_handle_errcode_p The pointer to the PDO database or statement handle object struct value `error_code`
- *      (`dbh->error_code` or `stmt->error_code`)
- * @see mimer_throw_except()
- */
-#define handle_custom_err(mimer_err_info_p, err_msg, mim_errcode, sqlstate, persistence, pdo_handle_errcode_p) \
-    (mimer_err_info_p)->error_msg ?: pefree((mimer_err_info_p)->error_msg, persistence);                       \
-    (mimer_err_info_p)->error_msg = pestrdup(err_msg, persistence);                                            \
-    (mimer_err_info_p)->mimer_error = mim_errcode;                                                             \
-    strcpy(pdo_handle_errcode_p, sqlstate);
-
-/**
- * @brief Macro function to customize an error message and then throw an exception
- * @param mimer_err_info_p A pointer to either the `pdo_mimer_handle` or `pdo_mimer_stmt`
- * @param err_msg A literal string of the error description
- * @param mim_errcode A native or custom MimerSQL error code
- * @param sqlstate A literal string with the SQLSTATE to be used by PDO
- * @param persistence A boolean value detailing if the error message should be persistent-allocated (`dbh->is_persistent)`
- * @param pdo_handle_errcode_p The pointer to the PDO database or statement handle object struct value `error_code`
- * @remark Expands handle_custom_err() and calls pdo_throw_exception()
- */
-#define mimer_throw_except(mimer_err_info_p, err_msg, mim_errcode, sqlstate, persistence, pdo_handle_errcode_p) \
-    handle_custom_err(mimer_err_info_p, err_msg, mim_errcode, sqlstate, persistence, pdo_handle_errcode_p)      \
-    pdo_throw_exception(mim_errcode, err_msg, (pdo_error_type*)(sqlstate));
+#define mimer_throw_except(pdo_handle, sqlstate) do {                  \
+    strcpy((pdo_handle)->error_code, sqlstate);                        \
+    pdo_throw_exception(PDO_MIMER_HANDLE(pdo_handle)->error_info.code, \
+        PDO_MIMER_HANDLE(pdo_handle)->error_info.msg, &(pdo_handle)->error_code); } while(0)
 
 /*******************************************************************************
  *                              SQLSTATE CODES                                 *
@@ -269,16 +197,15 @@ extern int _pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *file, 
  *******************************************************************************/
 
 
-#define IS_CUSTOM_MIMER_ERROR(err) ((err) < CUSTOM_MIMER_ERROR)
+#define PDO_MIMER_GENERAL_ERROR           (-100000)
+#define PDO_MIMER_FEATURE_NOT_IMPLEMENTED (-100001)
+#define PDO_MIMER_VALUE_TOO_LARGE         (-100002)
+#define PDO_MIMER_ENC_STATEFUL            (-100004)
+#define PDO_MIMER_ENC_UNKNOWN             (-100005)
+#define PDO_MIMER_UNKNOWN_LOB_TYPE        (-100006)
+#define PDO_MIMER_UNABLE_PHPSTREAM_ALLOC  (-100007)
+#define PDO_MIMER_UNKNOWN_COLUMN_TYPE     (-100008)
 
-#define MIMER_NO_ERROR                0
-#define MIMER_LOGIN_FAILED            (-14006)
-#define CUSTOM_MIMER_ERROR            (-100000)
-#define MIMER_FEATURE_NOT_IMPLEMENTED (-100001)
-#define MIMER_VALUE_TOO_LARGE         (-100002)
-#define MIMER_PDO_GENERAL_ERROR       (-100003)
-#define MIMER_PDO_ENC_STATEFUL        (-100004)
-#define MIMER_PDO_ENC_UNKNOWN         (-100005)
-#define MIMER_PDO_UNKNOWN_LOB_TYPE    (-100006)
+#define IS_CUSTOM_MIMER_ERROR(code) ((code) <= PDO_MIMER_GENERAL_ERROR)
 
 #endif //PHP_SRC_PHP_PDO_MIMER_ERRORS_H

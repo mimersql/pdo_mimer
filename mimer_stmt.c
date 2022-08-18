@@ -22,7 +22,7 @@
 #include "pdo/php_pdo_driver.h"
 #include "php_pdo_mimer.h"
 #include "php_pdo_mimer_int.h"
-#include "php_pdo_mimer_errors.h"
+#include "pdo_mimer_error.h"
 
 
 /**
@@ -31,20 +31,25 @@
  * @return 1 for success
  */
 static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
-    pdo_mimer_stmt *mimer_stmt = (pdo_mimer_stmt *)stmt->driver_data;
+    int success = 1;
 
-    if (mimer_stmt->cursor_open)
-        handle_err_stmt(MimerCloseCursor(mimer_stmt->statement));
-
-    if (mimer_stmt->statement != NULL)
-        handle_err_stmt(MimerEndStatement(&mimer_stmt->statement))
-
-    if (mimer_stmt->error_info.error_msg != NULL) {
-        pefree(mimer_stmt->error_info.error_msg, stmt->dbh->is_persistent);
+    if (PDO_MIMER_CURSOR_OPEN && !MIMER_SUCCEEDED(MimerCloseCursor(MIMER_STMT))) {
+        pdo_mimer_stmt_error();
+        mimer_throw_except(stmt, SQLSTATE_INVALID_CURSOR_STATE);
+        success = 0;
     }
 
-    efree(mimer_stmt);
-    return 1;
+    if (MIMER_STMT && !MIMER_SUCCEEDED(MimerEndStatement(&MIMER_STMT))) {
+        pdo_mimer_stmt_error();
+        mimer_throw_except(stmt, SQLSTATE_GENERAL_ERROR);
+        success = 0;
+    }
+
+    if (PDO_MIMER_STMT_ERROR->msg != NULL)
+        efree(PDO_MIMER_STMT_ERROR->msg);
+
+    efree(stmt->driver_data);
+    return success;
 }
 
 /**
@@ -57,28 +62,44 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
  *      </a>
  */
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
-    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
-    MimerError return_code;
-
-//    if (!MIMER_SUCCEEDED(return_code = MimerExecute(mimer_stmt->statement))) {
-//        zend_string* query = zend_string_tolower(stmt->query_string);
-//        if (strstr(ZSTR_VAL(query), "select"))  {
-//
-//        }
-//
-//    }
-
-    if(MimerStatementHasResultSet(mimer_stmt->statement)) {
+    if(MimerStatementHasResultSet(MIMER_STMT)) {
         int num_columns;
-        return_on_err_stmt(num_columns = MimerColumnCount(mimer_stmt->statement), 0)
-        return_on_err_stmt(MimerOpenCursor(mimer_stmt->statement), 0)
-        mimer_stmt->cursor_open = 1;
-        php_pdo_stmt_set_column_count(stmt, num_columns);
+        if (MIMER_SUCCEEDED(num_columns = MimerColumnCount(MIMER_STMT)) && MIMER_SUCCEEDED(MimerOpenCursor(MIMER_STMT))) {
+            PDO_MIMER_CURSOR_OPEN = true;
+            php_pdo_stmt_set_column_count(stmt, num_columns);
+            return 1;
+        }
+    } else if (MIMER_SUCCEEDED(MimerExecute(MIMER_STMT))) {
+        return 1;
     } else {
-        return_on_err_stmt(MimerExecute(mimer_stmt->statement), 0)
+        pdo_mimer_stmt_error();
+        return 0;
     }
+}
 
-    return 1;
+
+static int pdo_mimer_convert_fetch_op(enum pdo_fetch_orientation orientation) {
+    /* map PDO fetch orientation to MimerFetchScroll operation mode */
+    switch (orientation) {
+        case PDO_FETCH_ORI_NEXT:
+            return MIMER_NEXT;
+
+        case PDO_FETCH_ORI_PRIOR:
+            return MIMER_PREVIOUS;
+
+        case PDO_FETCH_ORI_ABS:
+            return MIMER_ABSOLUTE;
+
+        case PDO_FETCH_ORI_FIRST:
+            return MIMER_FIRST;
+
+        case PDO_FETCH_ORI_LAST:
+            return MIMER_LAST;
+
+        case PDO_FETCH_ORI_REL:
+        default:
+            return MIMER_RELATIVE;
+    }
 }
 
 
@@ -97,43 +118,24 @@ static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
  *      </a>
  */
 static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
-    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
-    MimerStatement *statement = &mimer_stmt->statement;
-    int32_t fetch_op_mode = MIMER_NEXT;
-    MimerError return_code;
-
-    /* map PDO fetch orientation to MimerFetchScroll operation mode */
-    switch (ori) {
-        case PDO_FETCH_ORI_NEXT:
-            fetch_op_mode = MIMER_NEXT;
-            break;
-
-        case PDO_FETCH_ORI_PRIOR:
-            fetch_op_mode = MIMER_PREVIOUS;
-            break;
-
-        case PDO_FETCH_ORI_ABS:
-            fetch_op_mode = MIMER_ABSOLUTE;
-            break;
-
-        case PDO_FETCH_ORI_FIRST:
-            fetch_op_mode = MIMER_FIRST;
-            break;
-
-        case PDO_FETCH_ORI_LAST:
-            fetch_op_mode = MIMER_LAST;
-            break;
-
-        case PDO_FETCH_ORI_REL:
-        default:
-            fetch_op_mode = MIMER_RELATIVE;
-            break;
+    MimerReturnCode return_code;
+    if (PDO_MIMER_CURSOR_TYPE == MIMER_FORWARD_ONLY) {
+        return_code = MimerFetch(MIMER_STMT);
+    } else {
+        return_code = MimerFetchScroll(MIMER_STMT, pdo_mimer_convert_fetch_op(ori), (int32_t) offset);
     }
 
-    return_on_err_stmt(return_code = mimer_stmt->cursor_type == MIMER_FORWARD_ONLY ? MimerFetch(*statement) :
-                                     MimerFetchScroll(*statement, fetch_op_mode, (int32_t)offset), 0)
-
-    return return_code != MIMER_NO_DATA;
+    switch (return_code) {
+        case MIMER_NO_DATA:
+            return 0;
+        
+        case MIMER_SUCCESS:
+            return 1;
+            
+        default:
+            pdo_mimer_stmt_error();
+            return 0;
+    }
 }
 
 /**
@@ -145,17 +147,19 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
  * @remark PDO uses 0-index for columns, MimerAPI starts at 1, needs offset.
  */
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
+    MimerReturnCode return_code;
     int mim_colno = colno + 1;
-    MimerError return_code;
 
-    MimerGetStr(MimerColumnName8, str_buf, return_code, stmt_handle->statement, mim_colno);
-    return_on_err_stmt(return_code, 0);
+    MimerGetStr(MimerColumnName8, str_buf, return_code, MIMER_STMT, mim_colno);
+    if (!MIMER_SUCCEEDED(return_code)) {
+        pdo_mimer_stmt_error();
+        return 0;
+    }
 
 	stmt->columns[colno] = (struct pdo_column_data) {
-            .name = zend_string_init(str_buf, strlen(str_buf), 0),
-            .maxlen = SIZE_MAX,
-            .precision = 0
+            zend_string_init(str_buf, return_code, 0), // return_code gives str len
+            SIZE_MAX,
+            0 // TODO: support precision?
     };
 
     return 1;
@@ -165,43 +169,49 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
  * @brief This function will be called by PDO to retrieve data from the specified column.
  * 
  * @param stmt Pointer to the statement structure initialized by mimer_handle_preparer.
- * @param colno The column number to be queried.
+ * @param colno The column numbper to be queried.
  * @param result Pointer to the retrieved data.
  * @param type Parameter data type.
  * @return 1 for success or 0 in the event of failure.
  * @remark PDO uses 0-index for columns, MimerAPI starts at 1, needs offset.
  */
 static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    int mim_colno = colno + 1; 
-    MimerError return_code;
+    int16_t mim_colno = colno + 1;
+    MimerReturnCode return_code = MIMER_SUCCESS;
 
-    return_on_err_stmt(return_code = MimerColumnType(stmt_handle->statement, mim_colno), 0)
+    if (!MIMER_SUCCEEDED(return_code = MimerColumnType(MIMER_STMT, mim_colno))) {
+        pdo_mimer_stmt_error();
+        return 0;
+    }
     
     if (MimerIsInt64(return_code)){
         int64_t res;
-        return_on_err_stmt(MimerGetInt64(stmt_handle->statement, mim_colno, &res), 0)
-        ZVAL_LONG(result, res);
+        if (MIMER_SUCCEEDED(return_code = MimerGetInt64(MIMER_STMT, mim_colno, &res)))
+            ZVAL_LONG(result, res);
     } else if (MimerIsInt32(return_code)) {
         int32_t res;
-        return_on_err_stmt(MimerGetInt32(stmt_handle->statement, mim_colno, &res), 0)
-        ZVAL_LONG(result, res);
+        if (MIMER_SUCCEEDED(return_code = MimerGetInt32(MIMER_STMT, mim_colno, &res)))
+            ZVAL_LONG(result, res);
     } else if (MimerIsString(return_code)){
-        MimerGetStr(MimerGetString8, str_buf, return_code, stmt_handle->statement, mim_colno);
-        return_on_err_stmt(return_code, 0)
-        ZVAL_STRING(result, str_buf);
+        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
+            char *tmp_buf = emalloc(return_code + 1);
+            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, tmp_buf, return_code + 1)))
+                ZVAL_STRING(result, tmp_buf);
+            efree(tmp_buf);
+        }
     } else if (MimerIsBlob(return_code)) {
-        php_stream *stm;
-        stm = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
-        php_stream_to_zval(stm, result);
-    }
-
-    else {
-        mimer_throw_except(&stmt_handle->error_info, "Unknown column type", MIMER_FEATURE_NOT_IMPLEMENTED,
-                          SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, stmt->dbh->is_persistent, stmt->error_code)
+        php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
+        if (stream)
+            php_stream_to_zval(stream, result)
+        else
+            pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
+                                   "Unable to allocate php stream");
+    } else {
+        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNKNOWN_COLUMN_TYPE,
+                               "Unknown column type");
     }
     
-    return 1;
+    return MIMER_SUCCEEDED(return_code);
 }
 
 /**
@@ -229,7 +239,7 @@ static ssize_t get_mbpartial(const char *buf, size_t len) {
 
     /** Cannot handle stateful encodings. */
     if (mblen(NULL, 0)){
-        return MIMER_PDO_ENC_STATEFUL;
+        return PDO_MIMER_ENC_STATEFUL;
     }
 
     /** If only last char is misformed, the furtest away from the buffer end
@@ -241,7 +251,7 @@ static ssize_t get_mbpartial(const char *buf, size_t len) {
         pos++;
         if (pos == len)
             /* No valid characters in given window, can't be due to partials */
-            return MIMER_PDO_ENC_UNKNOWN;
+            return PDO_MIMER_ENC_UNKNOWN;
     }
 
     /* pass through all valid chars */
@@ -251,7 +261,7 @@ static ssize_t get_mbpartial(const char *buf, size_t len) {
     if ((len - pos) < MIMER_MAX_MB_LEN){
         return len - pos;
     } else {
-        return MIMER_PDO_ENC_UNKNOWN;
+        return PDO_MIMER_ENC_UNKNOWN;
     }
 }
 
@@ -333,7 +343,7 @@ static ssize_t pdo_mimer_cloblen(php_stream *stm, size_t *tot_size){
         if ((nchars = get_mbchar_count(buf, nbytes_valid)) < 0){
             /** There were encoding errors not at the end of buffer */
             efree(buf);
-            return MIMER_PDO_ENC_UNKNOWN;
+            return PDO_MIMER_ENC_UNKNOWN;
         }
         nchars_tot += nchars;
         nbytes_tot += nbytes_valid;
@@ -365,18 +375,18 @@ static ssize_t pdo_mimer_cloblen(php_stream *stm, size_t *tot_size){
 static ssize_t pdo_mimer_loblen(php_stream *stm, int32_t lob_type, size_t *tot_size){
     ssize_t nchars = 0;
 
-    if (MimerIsBlob(lob_type)){
+    if (MimerIsBlob(lob_type)) {
         php_stream_seek(stm, 0, SEEK_END);
         nchars = php_stream_tell(stm);
         *tot_size = nchars;
         php_stream_rewind(stm);
         return nchars;
 
-    } else if (MimerIsClob(lob_type) || MimerIsNclob(lob_type)){
+    } else if (MimerIsNclob(lob_type)) {
         return pdo_mimer_cloblen(stm, tot_size);
 
     } else {
-        return MIMER_PDO_UNKNOWN_LOB_TYPE;
+        return PDO_MIMER_UNKNOWN_LOB_TYPE;
     }
 }
 
@@ -392,7 +402,7 @@ static ssize_t pdo_mimer_set_blob_data(php_stream *stm, MimerLob *blob_handle, s
     size_t chunk_size = MIMER_LOB_IN_CHUNK;
     size_t bytes_read = 0;
     size_t bytes_left = SIZE_MAX;
-    MimerError rc;
+    MimerReturnCode return_code;
     char *blob_buf = emalloc(MIMER_LOB_IN_CHUNK);
 
     do {
@@ -400,10 +410,12 @@ static ssize_t pdo_mimer_set_blob_data(php_stream *stm, MimerLob *blob_handle, s
         bytes_left = blob_size - bytes_read;
         chunk_size = bytes_left < MIMER_LOB_IN_CHUNK ? bytes_left : MIMER_LOB_IN_CHUNK;
         bytes_read += php_stream_read(stm, blob_buf, chunk_size);
-        handle_err(rc = MimerSetBlobData(blob_handle, blob_buf, chunk_size), efree(blob_buf), return rc)
+        if (!MIMER_SUCCEEDED(return_code = MimerSetBlobData(blob_handle, blob_buf, chunk_size)))
+            break;
     } while(bytes_read < blob_size);
+
     efree(blob_buf);
-    return rc;
+    return return_code;
 }
 
 /**
@@ -414,15 +426,16 @@ static ssize_t pdo_mimer_set_blob_data(php_stream *stm, MimerLob *blob_handle, s
  * @return 0 if successfully read all data from stream, negative error code otherwise.
  */
 static ssize_t pdo_mimer_set_clob_data(php_stream *stm, MimerLob *clob_handle){
+    MimerReturnCode return_code;
     ssize_t nbytes_valid;
+
     char *clob_buf = emalloc(MIMER_LOB_IN_CHUNK);
-    while((nbytes_valid = get_valid_stream_chunk(stm, clob_buf, MIMER_LOB_IN_CHUNK)) > 0){
-        handle_err(nbytes_valid = MimerSetClobData8(clob_handle, clob_buf, nbytes_valid),
-            efree(clob_buf) ,
-            return nbytes_valid)
+    while((nbytes_valid = get_valid_stream_chunk(stm, clob_buf, MIMER_LOB_IN_CHUNK)) > 0) {
+        if (!MIMER_SUCCEEDED(return_code = MimerSetClobData8(clob_handle, clob_buf, nbytes_valid)))
+            break;
     }
     efree(clob_buf);
-    return nbytes_valid;
+    return MIMER_SUCCEEDED(return_code) ? nbytes_valid : return_code;
 }
 
 /**
@@ -433,16 +446,17 @@ static ssize_t pdo_mimer_set_clob_data(php_stream *stm, MimerLob *clob_handle){
  * @return 0 if successfully read all data from stream, negative error code otherwise.
  */
 static ssize_t pdo_mimer_set_nclob_data(php_stream *stm, MimerLob *clob_handle){
+    MimerReturnCode return_code;
     ssize_t nbytes_valid;
-    char *nclob_buf = emalloc(MIMER_LOB_IN_CHUNK);
 
+    char *nclob_buf = emalloc(MIMER_LOB_IN_CHUNK);
     while((nbytes_valid = get_valid_stream_chunk(stm, nclob_buf, MIMER_LOB_IN_CHUNK)) > 0){
-        handle_err(nbytes_valid = MimerSetNclobData8(clob_handle, nclob_buf, nbytes_valid),
-        efree(nclob_buf),
-        return nbytes_valid)
+        if (!MIMER_SUCCEEDED(return_code = MimerSetNclobData8(clob_handle, nclob_buf, nbytes_valid)))
+            break;
     }
+
     efree(nclob_buf);
-    return nbytes_valid;
+    return MIMER_SUCCEEDED(return_code) ? nbytes_valid : return_code;
 }
 
 /**
@@ -453,44 +467,51 @@ static ssize_t pdo_mimer_set_nclob_data(php_stream *stm, MimerLob *clob_handle){
  * @param paramno The number of the parameter to set
  * @return Mimer status code.
  */
-static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter, int16_t paramno){
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerStatement *statement = &stmt_handle->statement;
-    MimerError return_code, lob_type;
+static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter, int16_t paramno){
+    MimerReturnCode return_code;
     MimerLob lob_handle;
+    int32_t lob_type;
     ssize_t lob_len = 0;
     size_t lob_size = 0;
     php_stream *stm = NULL;
 
     /** make a PHP stream from the zval
         TODO: More precise error info */
-    if (Z_TYPE_P(parameter) != IS_RESOURCE){
-        mimer_throw_except(&stmt_handle->error_info, "Expected a resource for LOB parameter", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
+    if (Z_TYPE_P(parameter) != IS_RESOURCE) {
+        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
+                               "Expected a resource for LOB parameter");
+        return return_code;
     }
+
     php_stream_from_zval_no_verify(stm, parameter);
     if (!stm){
-        mimer_throw_except(&stmt_handle->error_info, "Expected a stream resource for LOB parameter.", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
+        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
+                               "Expected a stream resource for LOB parameter");
+        return return_code;
     }
+
     zval_ptr_dtor(parameter);
 
     /** DB column type decides how we interpret and insert data */
-    handle_err(return_code = MimerParameterType(*statement, paramno), return return_code)
+    if (!MIMER_SUCCEEDED(return_code = MimerParameterType(MIMER_STMT, paramno)))
+        return return_code;
+
     lob_type = return_code;
 
     /** lob_len has different meanings for BLOBs and CLOB/NCLOBs */
     lob_len = pdo_mimer_loblen(stm, lob_type, &lob_size);
-    if (lob_len == 0){
-        return MimerSetLob(*statement, paramno, 0, &lob_handle);
+    if (lob_len == 0) {
+        return MimerSetLob(MIMER_STMT, paramno, 0, &lob_handle);
     } else if (lob_len < 0){
         /** TODO: error handling */
-        mimer_throw_except(&stmt_handle->error_info, "Error while calculating LOB length.", \
-            lob_len, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
+        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = lob_len,
+                               "Error while calculating LOB length");
+        return return_code;
     }
 
     /** make space in DB */
-    return_on_err_stmt(return_code = MimerSetLob(*statement, paramno, lob_len, &lob_handle), return_code)
+    if (!MIMER_SUCCEEDED(return_code = MimerSetLob(MIMER_STMT, paramno, lob_len, &lob_handle)))
+        return return_code;
 
     /* start data transfer */
     if (MimerIsBlob(lob_type)){
@@ -501,8 +522,8 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter, int1
         return_code = pdo_mimer_set_nclob_data(stm, &lob_handle);
     } else {
         /** TODO: More precise error info */
-        mimer_throw_except(&stmt_handle->error_info, "Expected BLOB, CLOB or NCLOB column type", \
-            MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
+        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
+                               "Expected BLOB, CLOB or NCLOB column type");
     }
 
     return return_code;
@@ -517,26 +538,24 @@ static MimerError pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter, int1
  * @param param_type The parameter's data type
  * @return return code from MimerSetX()
  */
-static MimerError pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, int16_t paramno, enum pdo_param_type param_type) {
-    pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
-    MimerStatement *statement = &mimer_stmt->statement;
-    MimerError return_code = MIMER_SUCCESS;
+static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, int16_t paramno, enum pdo_param_type param_type) {
+    MimerReturnCode return_code = MIMER_SUCCESS;
 
     switch (PDO_PARAM_TYPE(param_type)) {
         case PDO_PARAM_NULL:
-            return_code = MimerSetNull(*statement, paramno);
+            return_code = MimerSetNull(MIMER_STMT, paramno);
             break;
 
         case PDO_PARAM_BOOL:
-            return_code = MimerSetBoolean(*statement, paramno, Z_TYPE_P(parameter) == IS_TRUE);
+            return_code = MimerSetBoolean(MIMER_STMT, paramno, Z_TYPE_P(parameter) == IS_TRUE);
             break;
 
         case PDO_PARAM_INT:
-            return_code = MimerSetInt64(*statement, paramno, Z_LVAL_P(parameter));
+            return_code = MimerSetInt64(MIMER_STMT, paramno, Z_LVAL_P(parameter));
             break;
 
         case PDO_PARAM_STR:
-            return_code = MimerSetString8(*statement, paramno, Z_STRVAL_P(parameter));
+            return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
             break;
 
         case PDO_PARAM_LOB:
@@ -546,8 +565,9 @@ static MimerError pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, i
         /* unimplemented */
 #       define UNSUPPORTED(pdo_param) \
         case pdo_param:               \
-            mimer_throw_except(&mimer_stmt->error_info, #pdo_param " support is not yet implemented", \
-                MIMER_FEATURE_NOT_IMPLEMENTED, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, stmt->dbh->is_persistent, stmt->error_code) \
+            pdo_mimer_custom_error(stmt, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, \
+                                   return_code = PDO_MIMER_FEATURE_NOT_IMPLEMENTED, \
+                                   #pdo_param " support is not yet implemented");
             break;
 
         UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
@@ -555,8 +575,8 @@ static MimerError pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, i
         UNSUPPORTED(PDO_PARAM_STR_CHAR)
         UNSUPPORTED(PDO_PARAM_STMT)
         default:
-            mimer_throw_except(&mimer_stmt->error_info, "Unexpected parameter type",
-                MIMER_PDO_GENERAL_ERROR, SQLSTATE_GENERAL_ERROR, stmt->dbh->is_persistent, stmt->error_code)
+            pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
+                                   "Unexpected parameter type");
     }
 
     return return_code;
@@ -575,33 +595,37 @@ static MimerError pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, i
  * @see <a href="https://www.php.net/manual/en/pdo.constants.php">PHP: Predefined Constants</a>
  */
 static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-    MimerError return_code;
+    MimerReturnCode return_code = MIMER_SUCCESS;
+    int16_t paramno = param->paramno + 1; // Mimer SQL is one-indexed
 
-    if (stmt_handle->statement == NULL || !param->is_param) { /* nothing to do */
+    if (MIMER_STMT == NULL || !param->is_param) { /* nothing to do */
         return 1;
     }
 
     if (param->paramno >= INT16_MAX) {
-        /* TODO: custom error */
-        strcpy(stmt->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
-        pdo_throw_exception(MIMER_VALUE_TOO_LARGE,
-            "Parameter number is larger than INT16_MAX. Mimer only supports up to " QUOTE_EX(INT16_MAX) " parameters",
-                            &stmt->error_code);
-
+        pdo_mimer_custom_error(stmt, SQLSTATE_FEATURE_NOT_SUPPORTED, PDO_MIMER_VALUE_TOO_LARGE,
+                               "Parameter number is larger than 32767. Mimer only supports up to 32767 parameters");
         return 0;
     }
 
-    zval *parameter = Z_ISREF(param->parameter) ? Z_REFVAL(param->parameter) : &param->parameter;
-    if (event_type == PDO_PARAM_EVT_ALLOC && !Z_ISREF(param->parameter)) {
-        return_code = pdo_mimer_stmt_set_params(stmt, parameter, param->paramno + 1,param->param_type);
-    } else if (event_type == PDO_PARAM_EVT_EXEC_PRE && Z_ISREF(param->parameter)) {
-        return_code = pdo_mimer_stmt_set_params(stmt, parameter, param->paramno + 1,param->param_type);
-    } else {
-        return 1;
+    switch(event_type) {
+        case PDO_PARAM_EVT_ALLOC:
+            if (!Z_ISREF(param->parameter))
+                return_code = pdo_mimer_stmt_set_params(stmt, &param->parameter, paramno, param->param_type);
+            break;
+        case PDO_PARAM_EVT_EXEC_PRE:
+            if (Z_ISREF(param->parameter))
+                return_code = pdo_mimer_stmt_set_params(stmt, Z_REFVAL(param->parameter), paramno, param->param_type);
+            break;
+        default:
+            break;
     }
 
-    return_on_err_stmt(return_code, 0)
+    if (!MIMER_SUCCEEDED(return_code)) {
+        pdo_mimer_stmt_error();
+        return 0;
+    }
+
     return 1;
 }
 
@@ -623,10 +647,13 @@ static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
 }
 
 static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
-    pdo_mimer_stmt *stmt_handle = stmt->driver_data;
-
-    if (stmt_handle->cursor_open)
-        return_on_err_stmt(MimerCloseCursor(stmt_handle->statement), 0)
+    if (PDO_MIMER_CURSOR_OPEN) {
+        if (!MIMER_SUCCEEDED(MimerCloseCursor(MIMER_STMT))) {
+            pdo_mimer_stmt_error();
+            return 0;
+        }
+        PDO_MIMER_CURSOR_OPEN = false;
+    }
 
     return 1;
 }
@@ -640,18 +667,21 @@ static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
  */
 PHP_METHOD(PDOStatement_MimerSQL_Ext, mimerAddBatch) {
     pdo_stmt_t *stmt= Z_PDO_STMT_P(ZEND_THIS);
-    pdo_mimer_stmt *mimer_stmt = (pdo_mimer_stmt *)stmt->driver_data;
     zend_class_entry *pdoexception_ce =  zend_hash_str_find_ptr(CG(class_table), "pdoexception", sizeof("pdoexception") -1);
 
-    if (stmt->dbh == NULL || mimer_stmt == NULL || mimer_stmt->statement == NULL) {
+    if (stmt->dbh == NULL || PDO_MIMER_STMT == NULL || MIMER_STMT == NULL) {
         zend_throw_error(pdoexception_ce,
-                         !stmt->dbh ? "PDO object is uninitialized." :
-                         !mimer_stmt ? "PDO Mimer statement object is uninitialized." :
+                         stmt->dbh == NULL ? "PDO object is uninitialized." :
+                         PDO_MIMER_STMT == NULL ? "PDO Mimer statement object is uninitialized." :
                          "No statement started.");
         RETURN_THROWS();
     }
 
-    handle_err(MimerAddBatch(mimer_stmt->statement), pdo_mimer_stmt_error(stmt), RETURN_FALSE)
+    if (!MIMER_SUCCEEDED(MimerAddBatch(MIMER_STMT))) {
+            pdo_mimer_stmt_error();
+            RETURN_FALSE;
+    }
+
     RETURN_TRUE;
 }
 
