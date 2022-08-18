@@ -112,9 +112,9 @@ const php_stream_ops pdo_mimer_lob_stream_ops = {
  /**
   * @brief Creates a PHP stream which represents a connection to a LOB in DB.
   * 
-  * @param stmt A pointer to the PDO statement handle object.
-  * @param colno Index of LOB column in resultset (starting at 1) 
-  * @param lob_type MIMER_BLOB | MIMER_CLOB | MIMER_NCLOB
+  * @param stmt [in] A pointer to the PDOStatement handle object.
+  * @param colno [in] Index of LOB column in resultset (one-indexed)
+  * @param lob_type [in] MIMER_BLOB | MIMER_CLOB | MIMER_NCLOB
   * @return Pointer to PHP stream if successful, null otherwise
   */
 php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lob_type) {
@@ -140,72 +140,109 @@ php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lob
 }
 
 
-static int pdo_mimer_insert_error_info(MimerErrorInfo *error_info, MimerReturnCode code, const char *msg) {
+/**
+ * @brief Safely insert @p code and @p msg into @p error_info while freeing any previously allocated memory.
+ * @param error_info [out] The error info to insert @p code and @msg into.
+ * @param code [in] A MimerErrorCode belonging to the error.
+ * @param msg [in] The error message to display when needed.
+ */
+static void pdo_mimer_insert_error_info(MimerErrorInfo *error_info, MimerErrorCode code, const char *msg, const SQLState sqlstate) {
     if (error_info->msg) {
         pefree(error_info->msg, error_info->persistent);
     }
 
-    error_info->msg = pestrdup(msg, error_info->persistent);
     error_info->code = code;
+    error_info->msg = pestrdup(msg, error_info->persistent);
+    strcpy(error_info->sqlstate, sqlstate);
 }
 
+
+/**
+ * @brief Get error message and error code from @p handle.
+ * @param error_info [out] The error info to store the error code and message in.
+ * @param handle [in] Either a MimerSession or MimerStatement.
+ * @return MimerReturnCode
+ */
 static int pdo_mimer_get_error_info(MimerErrorInfo *error_info, MimerHandle handle) {
-    MimerReturnCode return_code, error_code;
+    MimerReturnCode return_code;
+    MimerErrorCode error_code;
     char *tmp_buf;
     size_t str_len;
 
-    str_len = (return_code = MimerGetError8(handle, &error_code, NULL, 0)) + 1;
+    str_len = (return_code = MimerGetError8(handle, &error_code, NULL, 0)) + 1; /* +1 for null terminator */
     if (!MIMER_SUCCEEDED(return_code))
-        return return_code;
+        return return_code; /* propagate error */
 
     tmp_buf = emalloc(str_len);
     if (!MIMER_SUCCEEDED(return_code = MimerGetError8(handle, &error_code, tmp_buf, str_len)))
-        return return_code;
+        return return_code; /* propagate error */
 
-    pdo_mimer_insert_error_info(error_info, error_code, tmp_buf);
+    pdo_mimer_insert_error_info(error_info, error_code, tmp_buf, MimerGetSQLState(error_code));
     efree(tmp_buf);
     return MIMER_SUCCESS;
 }
 
+
+/**
+ * @brief Error function to create custom error code and propagate @p sqlstate to @p pdo_error_code.
+ * @param error_info [in|out] @p error_info should be populated with error code beforehand.
+ * @param sqlstate [in] The SQLState code closest to the given error.
+ * @param pdo_error_code [out] The <code>pdo_error_type</code> from either <code>pdo_dbh_t</code> or
+ * <code>pdo_stmt_t</code>.
+ * @param format [in] The string to be formatted with the remaining arguments for the error message.
+ * @param ... [in] Extra arguments to pass to the error message to be formatted.
+ */
 void _pdo_mimer_custom_error(MimerErrorInfo *error_info, const char sqlstate[6], pdo_error_type pdo_error_code, const char * format, ...) {
     va_list ap;
     char *tmp_buf;
 
     va_start(ap, format);
-    vspprintf(&tmp_buf, 0, format, ap);
+    vspprintf(&tmp_buf, 0, format, ap); /* format string with the help of vspprintf using va_list */
     va_end(ap);
 
-    pdo_mimer_insert_error_info(error_info, error_info->code, tmp_buf);
+    pdo_mimer_insert_error_info(error_info, error_info->code, tmp_buf, sqlstate);
     strcpy(pdo_error_code, sqlstate);
 }
 
+
+/**
+ * @brief Error handler function to be used when an API error occurs. Gets the error code and error message.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @param FILE [in] The name of the file where the error occurred, to be used with <code>__FILE__</code>.
+ * @param LINE [in] The line number of where the error occurred, to be used with <code>__LINE__</code>.
+ * @remark  If a @p dbh error, pass <code>NULL</code> to @p stmt. If a @p stmt error, pass @p stmt<code>->dbh</code>
+ * to @p dbh and @p stmt to @p stmt.
+ */
 void pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *FILE, const int LINE) {
     MimerReturnCode return_code;
 
+    /* grab data needed depending on if error comes from statement or session */
     MimerHandle handle = stmt ? MIMER_HANDLE(stmt) : MIMER_HANDLE(dbh);
     MimerErrorInfo *error_info = stmt ? PDO_MIMER_STMT_ERROR : PDO_MIMER_DBH_ERROR;
 
     if (!MIMER_SUCCEEDED(return_code = pdo_mimer_get_error_info(error_info, handle))) {
+        /* unable to get error info for some reason. throw an exception */
         error_info->code = return_code;
-        _pdo_mimer_custom_error(error_info, SQLSTATE_GENERAL_ERROR, stmt ? stmt->error_code : dbh->error_code,
+        _pdo_mimer_custom_error(error_info, MimerGetSQLState(return_code), stmt ? stmt->error_code : dbh->error_code,
                                 "%s:%d Error occurred while fetching error from %s.",
                                 FILE, LINE, stmt ? "statement" : "session");
         if(stmt)
-            mimer_throw_except(stmt, SQLSTATE_GENERAL_ERROR);
+            mimer_throw_except(stmt);
         else
-            mimer_throw_except(dbh, SQLSTATE_GENERAL_ERROR);
+            mimer_throw_except(dbh);
     }
 }
 
 /**
- * @brief PDO method to end a Mimer SQL session
- * @param dbh A pointer to the PDO database handle object.
- * @remark Frees any allocated memory
+ * @brief PDO method to end a Mimer SQL session.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @remark Frees any allocated memory.
  */
 static void mimer_handle_closer(pdo_dbh_t *dbh) {
     if (!MIMER_SUCCEEDED(MimerEndSession(&MIMER_SESSION))) {
         pdo_mimer_dbh_error();
-        mimer_throw_except(dbh, SQLSTATE_GENERAL_ERROR);
+        mimer_throw_except(dbh);
     }
 
     if (PDO_MIMER_DBH_ERROR->msg != NULL)
@@ -217,48 +254,49 @@ static void mimer_handle_closer(pdo_dbh_t *dbh) {
 
 
 /**
- * @brief PDO method to prepare a SQL query with possible positional or named placeholders
- * @param dbh A pointer to the PDO database handle object.
- * @param sql The SQL query to be executed
- * @param stmt A pointer to the PDO statement handle object.
- * @param driver_options User-specified options to Mimer SQL
- * @return true if successfully prepared a statement, false if not
+ * @brief PDO method to prepare a SQL query with possible positional or named placeholders.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param sql [in] The SQL query to be executed.
+ * @param stmt [in|out] A pointer to the PDOStatement handle object.
+ * @param driver_options [in] User-specified options to Mimer SQL.
+ * @return true upon success
+ * @return false upon failure
  */
 static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *stmt, zval *driver_options) {
     MimerReturnCode return_code;
     MimerStatement mimer_stmt;
     int32_t cursor_type;
 
-    struct { bool freeme; zend_string *stmt; } active_query = {};
+    /* if no option given, assign PDO_CURSOR_FWDONLY as default */
     cursor_type = pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY) ==
             PDO_CURSOR_SCROLL ? MIMER_SCROLLABLE : MIMER_FORWARD_ONLY;
 
     stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL; /* TODO: add named placeholders */
+    struct { bool freeme; zend_string *stmt; } active_query = {};
     switch (pdo_parse_params(stmt, sql, &active_query.stmt)) {
-        case -1:
+        case -1: // unable to parse
             strcpy(dbh->error_code, stmt->error_code);
             goto cleanup;
 
-        case 0:
+        case 0: /* no parsing needed */
             active_query.stmt = sql;
             break;
 
-        default:
+        default: /* parsing needed, newly parsed sql statement now in active_query.stmt */
             active_query.freeme = 1;
             break;
     }
 
-    /* if no option given, assign PDO_CURSOR_FWDONLY as default */
     if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(MIMER_SESSION, ZSTR_VAL(active_query.stmt), cursor_type, &mimer_stmt))) {
         pdo_mimer_dbh_error();
         goto cleanup;
     }
 
-    stmt->driver_data = NEW_PDO_MIMER_STMT(mimer_stmt, cursor_type);
-    stmt->methods = &mimer_stmt_methods;
+    stmt->driver_data = NEW_PDO_MIMER_STMT(mimer_stmt, cursor_type); /* allocate memory for new handle */
+    stmt->methods = &pdo_mimer_stmt_methods;
 
     cleanup:
-    if (active_query.freeme)
+    if (active_query.freeme) /* if sql query was parsed, it's up to us to free that it */
         zend_string_release(active_query.stmt);
 
     return MIMER_SUCCEEDED(return_code);
@@ -267,11 +305,11 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
 
 /**
  * @brief This function will be called by PDO to execute a raw SQL statement.
- * @param dbh A pointer to the PDO database handle object.
- * @param sql A zend_string containing the SQL statement to be prepared.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param sql [in] A zend_string containing the SQL statement to be prepared.
  * @return This function returns the number of rows affected or -1 upon failure.
  * @remark Mimer SQL C API's <code>MimerExecuteStatement[8|C]</code> doesn't support
- *             returning number of affected rows.
+ * returning number of affected rows (yet?).
  */
 static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
     MimerReturnCode return_code;
@@ -281,8 +319,8 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
         pdo_mimer_dbh_error();
         return -1;
     } else {
-        // doesn't actually return num affected rows.
-        // this is just for possible future support, otherwise it will just return 0.
+        /* doesn't actually return num affected rows.
+         * this is just for possible future support, otherwise it will just return 0. */
         num_affected_rows = return_code;
     }
 
@@ -291,9 +329,10 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
 
 
 /**
- * @brief PDO method to start a transaction
- * @param dbh A pointer to the PDO database handle object.
- * @return true if transaction was started, false if not
+ * @brief PDO method to start a transaction.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @return true if transaction was started
+ * @return false if unable to start transaction
  */
 static bool mimer_handle_begin(pdo_dbh_t *dbh) {
     if (!MIMER_SUCCEEDED(MimerBeginTransaction(MIMER_SESSION, PDO_MIMER_TRANS_TYPE))) {
@@ -308,8 +347,9 @@ static bool mimer_handle_begin(pdo_dbh_t *dbh) {
 
 /**
  * @brief This function will be called by PDO to commit a transaction.
- * @param dbh A pointer to the PDO database handle object.
- * @return true on success, false if failure
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @return true if transaction was committed
+ * @return false if unable to commit transaction
  */
 static bool mimer_handle_commit(pdo_dbh_t *dbh) {
     if (!MIMER_SUCCEEDED(MimerEndTransaction(MIMER_SESSION, MIMER_COMMIT))) {
@@ -324,8 +364,9 @@ static bool mimer_handle_commit(pdo_dbh_t *dbh) {
 
 /**
  * @brief This function will be called by PDO to rollback a transaction.
- * @param dbh A pointer to the PDO database handle object.
- * @return true on success, false if failure
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @return true if transaction was rollbacked
+ * @return false if unable to rollback transaction
  */
 static bool mimer_handle_rollback(pdo_dbh_t *dbh) {
     if (!MIMER_SUCCEEDED(MimerEndTransaction(MIMER_SESSION, MIMER_ROLLBACK))) {
@@ -339,11 +380,12 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh) {
 
 
 /**
- * @brief PDO method to set driver attributes
- * @param dbh A pointer to the PDO database handle object
- * @param attribute A PDO or Mimer SQL attribute
- * @param value The value to set for the given attribute
- * @return true on successfully setting the attribute, false if not
+ * @brief PDO method to set driver attributes.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param attribute [in] The PDO or Mimer SQL attribute to set.
+ * @param value [in] The value to set for the given attribute.
+ * @return true on successfully able to set attribute value
+ * @return false if unable to set value or if attribute not supported
  */
 static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *value) {
     switch (attribute) {
@@ -356,7 +398,7 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
             if (!pdo_get_long_param(&trans_readonly, value)) /* user didnt enter a number type */
                 return false;
 
-            PDO_MIMER_TRANS_READONLY = trans_readonly; // true => READWRITE, false => READONLY
+            PDO_MIMER_TRANS_READONLY = trans_readonly; /* true => READWRITE, false => READONLY */
             return true;
         }
 
@@ -367,10 +409,10 @@ static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *v
 
 
 /**
- * @brief PDO method to retrieve the latest error
- * @param dbh A pointer to the PDO database handle object.
- * @param stmt A pointer to the PDO statement handle object.
- * @param info The information array to add Mimer SQL error information to
+ * @brief PDO method to retrieve the latest error.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @param info [in] The information array to add Mimer SQL error information to.
  */
 static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
     MimerErrorInfo *error_info = stmt ? PDO_MIMER_STMT_ERROR : PDO_MIMER_DBH_ERROR;
@@ -380,15 +422,19 @@ static void pdo_mimer_fetch_err(pdo_dbh_t *dbh, pdo_stmt_t *stmt, zval *info) {
         return;
     }
 
+    /* add information to PDO::errorInfo or PDOStatement::errorInfo */
+    /* the first index should already have been added by PDO, which is the SQLState code from either
+     * dbh->error_code or stmt->error_code, which has been added previously in pdo_mimer_error or pdo_mimer_custom_error */
     add_next_index_long(info, error_info->code);
     add_next_index_string(info, error_info->msg);
 }
 
 
 /**
- * @brief A function to check if the user is still connected to a MimerSession
- * @param dbh A pointer to the PDO database handle object.
- * @return true or false
+ * @brief A function to check if the user is still connected to a MimerSession.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @return true if connection is alive
+ * @return false if not connected
  */
 static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh) {
     if (!MIMER_SUCCEEDED(MimerPing(MIMER_SESSION))) {
@@ -400,14 +446,17 @@ static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh) {
 
 
 /**
- * @brief Get driver attributes (settings)
- * @return -1 for errors while retrieving a valid attribute
- * @return 0 for attempting to retrieve an attribute which is not supported by the driver
- * @return any other value for success, *return_value must be set to the attribute value
+ * @brief Get driver attributes.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param attribute [in] The PDO or Mimer SQL attribute to get the value of.
+ * @param return_value [out] The value of the attribute.
+ * @return 1 upon success
+ * @return 0 upon failure to get attribute value or if attribute not supported by driver
+ * @remark @p return_value holds the gotten attribute's value
  */
 static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *return_value) {
     switch (attribute) {
-        /* TODO: add autocommit functionality */
+        /* TODO: add autocommit functionality and/or more */
 
         case PDO_ATTR_CLIENT_VERSION:
             ZVAL_STRING(return_value, MimerAPIVersion());
@@ -424,14 +473,10 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
                 ZVAL_STRING(return_value, "Disconnected");
                 break;
             }
+
             ZVAL_STRING(return_value, "Connected");
             break;
         }
-
-        case PDO_ATTR_DEFAULT_STR_PARAM:
-            /* TODO: charset */
-            ZVAL_STRING(return_value, "UTF8");
-            break;
 
         /* custom driver attributes */
         case MIMER_ATTR_TRANS_OPTION:
@@ -449,11 +494,10 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
 
 
 /**
- * @brief Function entry for PDO to get extra driver/statement methods specific to PDO Mimer
- * @param dbh A pointer to the PDO database handle object.
- * @param kind The enum value to determine which set of methods should be used to extend PDO or PDOStatement
- * @return zend_function_entry* An array of Zend methods or NULL
- * @throws PDOException if unable to get argument
+ * @brief Function entry for PDO to get extra driver/statement methods specific to PDO Mimer.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param kind [in] The enum value to determine which set of methods should be used to extend PDO or PDOStatement.
+ * @return An array of methods or NULL if no methods available.
  */
 static inline const zend_function_entry *pdo_mimer_get_driver_methods(pdo_dbh_t *dbh, int kind) {
     return kind == PDO_DBH_DRIVER_METHOD_KIND_STMT ? class_PDOStatement_MimerSQL_Ext_methods : NULL;
@@ -461,10 +505,10 @@ static inline const zend_function_entry *pdo_mimer_get_driver_methods(pdo_dbh_t 
 
 
 /**
- * If the connection is in a transaction, return true, otherwise return false
- *
- * @param dbh A pointer to the PDO database handle object.
- * @return true if in transaction, false if not
+ * @brief Check if the connection currently has a started transaction.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @return true if a transaction has been started on this session
+ * @false if no transaction has been started
  */
 static inline bool pdo_mimer_in_transaction(pdo_dbh_t *dbh) {
     return PDO_MIMER_IN_TRANSACTION;
@@ -493,50 +537,55 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
 
 
 /**
- * @brief This method handles PDO's construction for use with Mimer SQL
- * @param dbh A pointer to the PDO database handle object.
- * @param driver_options The user-defined driver options to be used with PDO Mimer
+ * @brief This method is called when constructing the PDO object, for use with Mimer SQL.
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param driver_options [in] Attributes and/or options that can be set upon construction of the PDO object. This is
+ * usually where the user-defined options define the connection type to the database (eg. connection pooling,
+ * autocommit, etc.)
  * @example @code $PDO = new PDO("mimer:dbname=$dbname", $user, $pass, $attr_array); @endcode
  */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
-    /* Leave this guard here until we're ready to test persistent connections*/
+    /* Leave this guard here until we're ready to test persistent connections */
     if(dbh->is_persistent){
         strcpy(dbh->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
         pdo_throw_exception(PDO_MIMER_FEATURE_NOT_IMPLEMENTED, "Persistent connections not yet supported", &dbh->error_code);
     }
 
-    enum { dbname, user, password, num_opts };
-    struct pdo_data_src_parser opts[] = {
+    enum { dbname, user, password, pass, pwd, num_opts }; /* for ease of use when accessing opts */
+    struct pdo_data_src_parser opts[] = { /* the data source name options to provide to the user */
             /* if the user does not give database name, NULL will trigger default database connection */
             { "dbname", NULL, 0 },
             { "user", "", 0 }, /* MimerBeginSession crashes on NULL user */
             { "password", NULL, 0 },
+            {"pass", NULL, 0},
+            {"pwd", NULL, 0},
     };
 
+    /* parse the data source name, getting user provided values, swapping out the default values for the user provided ones */
+    /* when the user provides values to the matching provided options, the freeme field is set to one requiring freeing
+     * of the optval field */
     php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, opts, num_opts);
-    if (!dbh->username && opts[user].optval)
+    if (!dbh->username && opts[user].optval) // username arg in PDO constructor takes precedence
         dbh->username = pestrdup(opts[user].optval, dbh->is_persistent);
-    if (!dbh->password && opts[password].optval)
-        dbh->password = pestrdup(opts[password].optval, dbh->is_persistent);
+    if (!dbh->password && (opts[password].optval || opts[pass].optval || opts[pwd].optval)) // password arg in PDO constructor takes precedence
+        dbh->password = pestrdup(opts[password].optval ?: opts[pass].optval ?: opts[pwd].optval, dbh->is_persistent);
 
     /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
     /* TODO: add session-persistence functionality */
-    dbh->driver_data = NEW_PDO_MIMER_DBH(dbh->is_persistent);
+    dbh->driver_data = NEW_PDO_MIMER_DBH(dbh->is_persistent); /* needs to be created here to access MIMER_SESSION below */
     if (!MIMER_SUCCEEDED(MimerBeginSession8(opts[dbname].optval, dbh->username, dbh->password, &MIMER_SESSION))) {
         pdo_mimer_dbh_error();
-        mimer_throw_except(dbh, SQLSTATE_CONNECTION_FAILURE);
-        mimer_handle_closer(dbh);
+        mimer_throw_except(dbh);
+        mimer_handle_closer(dbh); /* call handle closer to free memory */
         goto cleanup;
     }
 
 
-    /* tell the PDO db handler what to do */
-    dbh->methods = &mimer_methods;
+    dbh->methods = &mimer_methods; /* an array of methods that PDO can call provided by our driver */
     dbh->skip_param_evt = 0b1111111 ^ (1 << PDO_PARAM_EVT_EXEC_PRE); /* skip all but exec_pre param events */
 
 
-    /* free up options given by user in dsn */
-    cleanup:
+    cleanup: /* free up options given by user in dsn */
     for (int i = 0; i < num_opts; i++) {
         if (opts[i].freeme) {
             efree(opts[i].optval);

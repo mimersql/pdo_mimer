@@ -26,22 +26,23 @@
 
 
 /**
- * @brief PDO Mimer method to end a statement and free necessary memory
- * @param stmt A pointer to the PDO statement handle object.
- * @return 1 for success
+ * @brief PDO Mimer method to end a statement and free necessary memory.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @return 1 upon success
+ * @return 0 upon failure
  */
 static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
     int success = 1;
 
     if (PDO_MIMER_CURSOR_OPEN && !MIMER_SUCCEEDED(MimerCloseCursor(MIMER_STMT))) {
         pdo_mimer_stmt_error();
-        mimer_throw_except(stmt, SQLSTATE_INVALID_CURSOR_STATE);
         success = 0;
     }
 
-    if (MIMER_STMT && !MIMER_SUCCEEDED(MimerEndStatement(&MIMER_STMT))) {
+    /* if unable to properly end statement, throw an except since something more fatal has probably happened */
+    if (!MIMER_SUCCEEDED(MimerEndStatement(&MIMER_STMT))) {
         pdo_mimer_stmt_error();
-        mimer_throw_except(stmt, SQLSTATE_GENERAL_ERROR);
+        mimer_throw_except(stmt);
         success = 0;
     }
 
@@ -49,14 +50,17 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
         efree(PDO_MIMER_STMT_ERROR->msg);
 
     efree(stmt->driver_data);
+    stmt->driver_data = NULL;
     return success;
 }
 
+
 /**
  * @brief Execute a prepared SQL statement.
- * @param stmt A pointer to the PDO statement handle object.
- * @return 1 for success, 0 for failure.
- * @remark Driver is responsible for setting the column_count field in stmt for result set statements
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @return 1 upon success
+ * @return 0 upon failure
+ * @remark Driver is responsible for setting the column_count field in stmt for result set statements.
 *  @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.pdo-stmt-t">
  *          PDO Driver How-To: pdo_stmt_t definition
  *      </a>
@@ -71,15 +75,19 @@ static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
         }
     } else if (MIMER_SUCCEEDED(MimerExecute(MIMER_STMT))) {
         return 1;
-    } else {
-        pdo_mimer_stmt_error();
-        return 0;
     }
+
+    pdo_mimer_stmt_error();
+    return 0;
 }
 
 
-static int pdo_mimer_convert_fetch_op(enum pdo_fetch_orientation orientation) {
-    /* map PDO fetch orientation to MimerFetchScroll operation mode */
+/**
+ * @brief Helper function to convert PDO's fetch operation to Mimer SQL C API's fetch operation.
+ * @param orientation [in] A fetch "orientation" provided by PDO prepended by <code>PDO_FETCH_ORI_</code>.
+ * @return Mimer SQL fetch operation
+ */
+static inline int pdo_mimer_convert_fetch_op(enum pdo_fetch_orientation orientation) {
     switch (orientation) {
         case PDO_FETCH_ORI_NEXT:
             return MIMER_NEXT;
@@ -105,46 +113,43 @@ static int pdo_mimer_convert_fetch_op(enum pdo_fetch_orientation orientation) {
 
 /**
  * @brief This function will be called by PDO to fetch a row from a previously executed statement object.
- * @param stmt Pointer to the statement structure initialized by pdo_mimer_handle_preparer.
- * @param ori One of PDO_FETCH_ORI_xxx which will determine which row will be fetched.
- * @param offset If ori is set to PDO_FETCH_ORI_ABS or PDO_FETCH_ORI_REL, offset represents the row desired or the row
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @param ori [in] One of PDO_FETCH_ORI_xxx which will determine which row will be fetched.
+ * @param offset [in] If @p ori is set to PDO_FETCH_ORI_ABS or PDO_FETCH_ORI_REL, offset represents the row desired or the row
  *      relative to the current position, respectively. Otherwise, this value is ignored.
- * @return 1 for success or 0 in the event of failure.
+ * @return 1 upon success
+ * @return 0 upon failure
  * @remark The results of this fetch are driver dependent and the data is usually stored in the driver_data member of
- *      the pdo_stmt_t object. The ori and offset parameters are only meaningful if the statement represents a
- *      scrollable cursor.
+ * the pdo_stmt_t object. The ori and offset parameters are only meaningful if the statement represents a scrollable
+ * cursor.
  * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">
  *          PDO Driver How-To: Fleshing out your skeleton (SKEL_stmt_fetch)
  *      </a>
  */
 static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori, zend_long offset) {
     MimerReturnCode return_code;
-    if (PDO_MIMER_CURSOR_TYPE == MIMER_FORWARD_ONLY) {
-        return_code = MimerFetch(MIMER_STMT);
-    } else {
+
+    if (PDO_MIMER_SCROLLABLE)
         return_code = MimerFetchScroll(MIMER_STMT, pdo_mimer_convert_fetch_op(ori), (int32_t) offset);
+    else
+        return_code = MimerFetch(MIMER_STMT);
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        pdo_mimer_stmt_error();
+        return 0;
     }
 
-    switch (return_code) {
-        case MIMER_NO_DATA:
-            return 0;
-        
-        case MIMER_SUCCESS:
-            return 1;
-            
-        default:
-            pdo_mimer_stmt_error();
-            return 0;
-    }
+    return return_code != MIMER_NO_DATA;
 }
+
 
 /**
  * @brief This function will be called by PDO to query information about a particular column.
- * 
- * @param stmt Pointer to the statement structure initialized by pdo_mimer_handle_preparer.
- * @param colno The column number to be queried.
- * @return 1 for success or 0 in the event of failure.
- * @remark PDO uses 0-index for columns, MimerAPI starts at 1, needs offset.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @param colno [in] The column number to be queried.
+ * @return 1 upon success
+ * @return 0 upon failure
+ * @remark PDO is zero-indexed for columns, Mimer SQL's C API is one-indexed.
  */
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
     MimerReturnCode return_code;
@@ -157,9 +162,9 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
     }
 
 	stmt->columns[colno] = (struct pdo_column_data) {
-            zend_string_init(str_buf, return_code, 0), // return_code gives str len
+            zend_string_init(str_buf, return_code, 0), /* return_code gives str len */
             SIZE_MAX,
-            0 // TODO: support precision?
+            0 /* TODO: support precision? */
     };
 
     return 1;
@@ -167,51 +172,78 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
 
 /**
  * @brief This function will be called by PDO to retrieve data from the specified column.
- * 
- * @param stmt Pointer to the statement structure initialized by mimer_handle_preparer.
- * @param colno The column numbper to be queried.
- * @param result Pointer to the retrieved data.
- * @param type Parameter data type.
- * @return 1 for success or 0 in the event of failure.
- * @remark PDO uses 0-index for columns, MimerAPI starts at 1, needs offset.
+ * @param stmt [in] stmt [in] A pointer to the PDOStatement handle object.
+ * @param colno [in] The column number to be queried.
+ * @param result [out] Pointer to the retrieved data.
+ * @param type [in] Parameter data type.
+ * @return 1 upon success
+ * @return 0 upon failure
+ * @remark PDO is zero-indexed for columns, Mimer SQL's C API is one-indexed.
  */
 static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result, enum pdo_param_type *type) {
-    int16_t mim_colno = colno + 1;
-    MimerReturnCode return_code = MIMER_SUCCESS;
+    MimerReturnCode return_code;
+    int32_t column_type;
 
-    if (!MIMER_SUCCEEDED(return_code = MimerColumnType(MIMER_STMT, mim_colno))) {
+    int16_t mim_colno = colno + 1;
+    if (!MIMER_SUCCEEDED(column_type = MimerColumnType(MIMER_STMT, mim_colno))) {
         pdo_mimer_stmt_error();
         return 0;
     }
-    
-    if (MimerIsInt64(return_code)){
-        int64_t res;
-        if (MIMER_SUCCEEDED(return_code = MimerGetInt64(MIMER_STMT, mim_colno, &res)))
-            ZVAL_LONG(result, res);
-    } else if (MimerIsInt32(return_code)) {
-        int32_t res;
-        if (MIMER_SUCCEEDED(return_code = MimerGetInt32(MIMER_STMT, mim_colno, &res)))
-            ZVAL_LONG(result, res);
-    } else if (MimerIsString(return_code)){
-        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
-            char *tmp_buf = emalloc(return_code + 1);
-            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, tmp_buf, return_code + 1)))
-                ZVAL_STRING(result, tmp_buf);
-            efree(tmp_buf);
+
+    if (MimerIsInt64(column_type)) {
+        int64_t data;
+
+        if (MIMER_SUCCEEDED(return_code = MimerGetInt64(MIMER_STMT, mim_colno, &data))) {
+            ZVAL_LONG(result, data);
+            return 1;
         }
-    } else if (MimerIsBlob(return_code)) {
+    }
+
+    else if (MimerIsInt32(column_type)) {
+        int32_t data;
+
+        if (MIMER_SUCCEEDED(return_code = MimerGetInt32(MIMER_STMT, mim_colno, &data))) {
+            ZVAL_LONG(result, data);
+            return 1;
+        }
+    }
+
+    else if (MimerIsString(column_type)){
+        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
+            size_t str_len = return_code + 1; // +1 for null-terminator
+            char *data = emalloc(str_len);
+
+            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, data, str_len)))
+                ZVAL_STRING(result, data);
+
+            efree(data);
+        }
+    }
+
+    else if (MimerIsBlob(column_type)) {
         php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
-        if (stream)
+
+        if (stream) {
             php_stream_to_zval(stream, result)
-        else
+        } else {
             pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
                                    "Unable to allocate php stream");
-    } else {
+            return 0;
+        }
+    }
+
+    else {
         pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNKNOWN_COLUMN_TYPE,
                                "Unknown column type");
+        return 0;
     }
-    
-    return MIMER_SUCCEEDED(return_code);
+
+    if (!MIMER_SUCCEEDED(return_code)) {
+        pdo_mimer_stmt_error();
+        return 0;
+    }
+
+    return 1;
 }
 
 /**
@@ -531,12 +563,12 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
 
 
 /**
- * @brief Set parameter values for the statement
- * @param stmt A pointer to the PDO statement handle object.
- * @param parameter The value to set for the parameter
- * @param paramno The number of the parameter to set
- * @param param_type The parameter's data type
- * @return return code from MimerSetX()
+ * @brief Set parameter values for the statement to be executed.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @param parameter [in] The value to set for the parameter.
+ * @param paramno [in] The number of the parameter to set.
+ * @param param_type [in] The parameter's data type.
+ * @return return code from <code>MimerSetX()</code>
  */
 static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, int16_t paramno, enum pdo_param_type param_type) {
     MimerReturnCode return_code = MIMER_SUCCESS;
@@ -584,21 +616,22 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
 
 
 /**
- * @brief Handle bound parameters and columns
- * @param stmt A pointer to the PDO statement handle object.
- * @param param The structure describing either a statement parameter or a bound column.
- * @param event_type The type of event to occur for this parameter.
- * @return 1 for success, 0 for failure.
+ * @brief Handle bound parameters and columns.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @param param [in] The structure describing either a statement parameter or a bound column.
+ * @param event_type [in] The type of event to occur for this parameter.
+ * @return 1 upon success
+ * @return 0 upon failure
  * @remark This hook will be called for each bound parameter and bound column in the statement.
-*           For ALLOC and FREE events, a single call will be made for each parameter or column
+ * For ALLOC and FREE events, a single call will be made for each parameter or column.
  * @see <a href="https://php-legacy-docs.zend.com/manual/php5/en/internals2.pdo.implementing">Implementing PDO</a>
  * @see <a href="https://www.php.net/manual/en/pdo.constants.php">PHP: Predefined Constants</a>
  */
 static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_data *param, enum pdo_param_event event_type) {
     MimerReturnCode return_code = MIMER_SUCCESS;
-    int16_t paramno = param->paramno + 1; // Mimer SQL is one-indexed
+    int16_t paramno = param->paramno + 1; /* Mimer SQL is one-indexed */
 
-    if (MIMER_STMT == NULL || !param->is_param) { /* nothing to do */
+    if (MIMER_STMT == NULL || !param->is_param) { /* if not param, is of column type */
         return 1;
     }
 
@@ -608,15 +641,28 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
         return 0;
     }
 
+    /**
+     * Values bound with PDOStatement::bindParam() cannot be touched until PDO_PARAM_EVT_EXEC_PRE. When using
+     * bindParam(), values are passed by reference, ergo Z_ISREF() check is performed.
+     *
+     * Since PDO_PARAM_EVT_EXEC_PRE only occurs first when PDOStatement::execute() is called, we set the parameter
+     * values when bindValue() is called already at PDO_PARAM_EVT_ALLOC so that PDOStatement::mimerAddBatch() can be
+     * used before execute(). This therefore limits usage of mimerAddBatch() to only be able to be used in tandem with
+     * bindValue() and cannot be used with bindParam(). At least, for now.
+     */
     switch(event_type) {
         case PDO_PARAM_EVT_ALLOC:
-            if (!Z_ISREF(param->parameter))
+            if (!Z_ISREF(param->parameter)) /* bindValue() was used, let's set those params */
+                /* if param is ref, that means bindParam() was used, cannot continue until EXEC_PRE */
                 return_code = pdo_mimer_stmt_set_params(stmt, &param->parameter, paramno, param->param_type);
             break;
+
         case PDO_PARAM_EVT_EXEC_PRE:
-            if (Z_ISREF(param->parameter))
+            if (Z_ISREF(param->parameter)) /* bindParam() was used, let's set those params */
+                /* if param is not ref, that means bindValue() was used which should have been set in EVT_ALLOC */
                 return_code = pdo_mimer_stmt_set_params(stmt, Z_REFVAL(param->parameter), paramno, param->param_type);
             break;
+
         default:
             break;
     }
@@ -646,12 +692,20 @@ static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
     return 0;
 }
 
+
+/**
+ * @brief The function PDO calls to close the current cursor.
+ * @param stmt [in] A pointer to the PDOStatement handle object.
+ * @return 1 upon success
+ * @return 0 upon failure
+ */
 static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
     if (PDO_MIMER_CURSOR_OPEN) {
         if (!MIMER_SUCCEEDED(MimerCloseCursor(MIMER_STMT))) {
             pdo_mimer_stmt_error();
             return 0;
         }
+
         PDO_MIMER_CURSOR_OPEN = false;
     }
 
@@ -661,19 +715,21 @@ static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
 
 /**
  * @brief The PHP method <code>mimerAddBatch()</code> extending the <code>PDOStatement</code> class to be able to set
- *     multiple parameter values on a prepared statement with Mimer SQL
- * @param return_value true on success, false if failed to add batch statement
- * @throws PDOException if PDO Statement object, PDO Mimer statement object, or MimerStatement is uninitialized
+ * multiple parameter values on a prepared statement with Mimer SQL.
+ * @param return_value [out] true on success, false if failed to add batch statement.
+ * @throws PDOException if PDO Statement object, PDO Mimer statement object, or MimerStatement is uninitialized.
  */
 PHP_METHOD(PDOStatement_MimerSQL_Ext, mimerAddBatch) {
-    pdo_stmt_t *stmt= Z_PDO_STMT_P(ZEND_THIS);
+    pdo_stmt_t *stmt = Z_PDO_STMT_P(ZEND_THIS); /* gets PDOStatement object from which mimerAddBatch() was called on */
+    /* get PDOException class object so we can throw an exception on an error */
     zend_class_entry *pdoexception_ce =  zend_hash_str_find_ptr(CG(class_table), "pdoexception", sizeof("pdoexception") -1);
 
-    if (stmt->dbh == NULL || PDO_MIMER_STMT == NULL || MIMER_STMT == NULL) {
+    if (!stmt || !stmt->dbh || !PDO_MIMER_STMT || !MIMER_STMT) {
         zend_throw_error(pdoexception_ce,
-                         stmt->dbh == NULL ? "PDO object is uninitialized." :
-                         PDO_MIMER_STMT == NULL ? "PDO Mimer statement object is uninitialized." :
-                         "No statement started.");
+                         !stmt ? "PDOStatement object is uninitialized." :
+                         !stmt->dbh ? "PDO object is uninitialized." :
+                         !PDO_MIMER_STMT? "PDO Mimer handle object is uninitialized." :
+                         "A MimerStatement has not yet been prepared.");
         RETURN_THROWS();
     }
 
@@ -686,8 +742,8 @@ PHP_METHOD(PDOStatement_MimerSQL_Ext, mimerAddBatch) {
 }
 
 
-/* the methods implemented by PDO Mimer for PDO statement handling */
-const struct pdo_stmt_methods mimer_stmt_methods = {
+/* the methods implemented by PDO Mimer to interface with PDOStatement */
+const struct pdo_stmt_methods pdo_mimer_stmt_methods = {
         pdo_mimer_stmt_dtor,   /* statement destructor method */
         pdo_mimer_stmt_executer,   /* statement executor method */
         pdo_mimer_stmt_fetch,   /* statement fetcher method */
