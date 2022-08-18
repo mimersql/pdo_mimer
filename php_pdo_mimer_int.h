@@ -20,12 +20,63 @@
 
 #include <mimerapi.h>
 #include <mimerrors.h>
+#include "pdo_mimer_error.h"
+
 
 extern const pdo_driver_t pdo_mimer_driver;
 extern const struct pdo_stmt_methods mimer_stmt_methods;
 
-#define QUOTE(x) #x
-#define QUOTE_EX(x) QUOTE(x)
+
+typedef int32_t MimerReturnCode;
+typedef struct pdo_mimer_handle {
+    union {
+        struct pdo_mimer_dbh {
+            struct pdo_mimer_transaction {
+                bool started;
+                bool read_only;
+            } transaction;
+        } dbh;
+
+        struct pdo_mimer_stmt {
+            struct pdo_mimer_cursor {
+                bool open;
+                bool scrollable;
+            } cursor;
+        } stmt;
+    };
+
+    MimerErrorInfo error_info;
+    union {
+        MimerHandle handle;
+        MimerSession session;
+        MimerStatement statement;
+    };
+} pdo_mimer_handle;
+
+
+#define PDO_MIMER_HANDLE(pdo_handle) ((pdo_mimer_handle*)(pdo_handle)->driver_data)
+#define MIMER_HANDLE(pdo_handle) PDO_MIMER_HANDLE(pdo_handle)->handle
+
+#define PDO_MIMER_DBH (&(PDO_MIMER_HANDLE(dbh))->dbh)
+#define PDO_MIMER_DBH_ERROR (&PDO_MIMER_HANDLE(dbh)->error_info)
+#define PDO_MIMER_TRANS_READONLY PDO_MIMER_DBH->transaction.read_only
+#define PDO_MIMER_TRANS_TYPE (PDO_MIMER_TRANS_READONLY ? MIMER_TRANS_READONLY : MIMER_TRANS_READWRITE)
+#define PDO_MIMER_IN_TRANSACTION PDO_MIMER_DBH->transaction.started
+#define MIMER_SESSION PDO_MIMER_HANDLE(dbh)->session
+#define NEW_PDO_MIMER_DBH(persistent) \
+    pecalloc(1, sizeof(pdo_mimer_handle), persistent)
+
+#define PDO_MIMER_STMT (&(PDO_MIMER_HANDLE(stmt)->stmt))
+#define PDO_MIMER_STMT_ERROR (&PDO_MIMER_HANDLE(stmt)->error_info)
+#define PDO_MIMER_CURSOR_OPEN PDO_MIMER_STMT->cursor.open
+#define PDO_MIMER_SCROLLABLE PDO_MIMER_STMT->cursor.scrollable
+#define PDO_MIMER_CURSOR_TYPE (PDO_MIMER_STMT->cursor.scrollable ? MIMER_SCROLLABLE : MIMER_FORWARD_ONLY)
+#define MIMER_STMT PDO_MIMER_HANDLE(stmt)->statement
+#define NEW_PDO_MIMER_STMT(mimer_stmt, cursor_scrollable) \
+    ecalloc(1, sizeof(pdo_mimer_handle));                 \
+    MIMER_STMT = mimer_stmt;                              \
+    PDO_MIMER_SCROLLABLE = ((cursor_scrollable) == MIMER_SCROLLABLE)
+
 
 /**
  * @brief Macro function to get a string value since Mimer SQL's C API functions behave similarly
@@ -46,39 +97,9 @@ extern const struct pdo_stmt_methods mimer_stmt_methods;
 #define MimerGetStr(mimer_func, str, rc, ...)        \
     rc = (mimer_func)(__VA_ARGS__, NULL, 0);         \
     char str[(rc) > 0 ? (rc) + 1 : 0];               \
-    if ((rc) > 0) {                                  \
+    do {if ((rc) > 0) {                              \
         rc = (mimer_func)(__VA_ARGS__, str, rc + 1); \
-    }
-
-typedef int32_t MimerError;
-
-typedef struct mimer_error_info_t {
-    char *error_msg;
-    MimerError mimer_error;
-} MimerErrorInfo;
-
-typedef struct pdo_mimer_handle_t {
-    MimerSession session;
-    int32_t trans_option;
-    MimerErrorInfo error_info;
-} pdo_mimer_handle;
-
-typedef struct pdo_mimer_stmt_t {
-    pdo_mimer_handle *handle;
-    MimerStatement statement; 
-    MimerErrorInfo error_info; 
-    int32_t cursor_type;
-    int cursor_open;
-} pdo_mimer_stmt;
-
-typedef struct pdo_data_src_parser data_src_opt;
-
-/**
- * @brief Macro function to get a DSN option's value
- * @param optname The name of the option to get the value from
- * @return A string or NULL
- */
-#define optval(optname) data_src_opts[optname##_opt].optval
+    }} while (0)
 
 /**
  * @brief Checks if the statement will yield a result set
@@ -87,26 +108,37 @@ typedef struct pdo_data_src_parser data_src_opt;
 #define MimerStatementHasResultSet(statement) ((statement) != NULL && MimerColumnCount((statement)) > 0) /* workaround */
 
 
-enum { /* Define custom driver attributes here */
-    MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC
-};
+/**
+ * @brief Macro function to get a DSN option's value
+ * @param optname The name of the option to get the value from
+ * @return A string or NULL
+ */
 
+
+/* Define custom driver attributes here */
+typedef enum pdo_mimer_attr {
+    MIMER_ATTR_TRANS_OPTION = PDO_ATTR_DRIVER_SPECIFIC,
+} pdo_mimer_attr;
+
+
+
+////////////////////////////////////////////////
+//              LOB-specifics
+///////////////////////////////////////////////
+
+#define MIMER_LOB_IN_CHUNK 8192
+#define MIMER_MAX_MB_LEN   8 // max N bytes in a multibyte char
 
 /**
  * @brief The driver specific data needed in Mimer LOB streams.
  */
-typedef struct pdo_mimer_lob_streamdata_t {
+typedef struct pdo_mimer_lob_stream_data_t {
 	MimerLob lob_handle;
     int32_t lob_type;
-    char eof;
-} pdo_mimer_lob_streamdata;
+    uint8_t eof;
+} pdo_mimer_lob_stream_data;
 
-
-php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lobtype);
+extern php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lob_type);
 extern const php_stream_ops pdo_mimer_lob_stream_ops;
-
-#define MIMER_LOB_IN_CHUNK 8192
-
-#define MIMER_MAX_MB_LEN 8 // max N bytes in a multi-byte char 
 
 #endif /* PHP_PDO_MIMER_INT_H */
