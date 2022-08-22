@@ -82,33 +82,15 @@ static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
 }
 
 
-/**
- * @brief Helper function to convert PDO's fetch operation to Mimer SQL C API's fetch operation.
- * @param orientation [in] A fetch "orientation" provided by PDO prepended by <code>PDO_FETCH_ORI_</code>.
- * @return Mimer SQL fetch operation
- */
-static inline int pdo_mimer_convert_fetch_op(enum pdo_fetch_orientation orientation) {
-    switch (orientation) {
-        case PDO_FETCH_ORI_NEXT:
-            return MIMER_NEXT;
-
-        case PDO_FETCH_ORI_PRIOR:
-            return MIMER_PREVIOUS;
-
-        case PDO_FETCH_ORI_ABS:
-            return MIMER_ABSOLUTE;
-
-        case PDO_FETCH_ORI_FIRST:
-            return MIMER_FIRST;
-
-        case PDO_FETCH_ORI_LAST:
-            return MIMER_LAST;
-
-        case PDO_FETCH_ORI_REL:
-        default:
-            return MIMER_RELATIVE;
-    }
-}
+/* lookup table for converting PDO fetch orientation to Mimer SQL fetch operation */
+const int mimer_fetch_op_lut[] = {
+        MIMER_NEXT,
+        MIMER_PREVIOUS,
+        MIMER_FIRST,
+        MIMER_LAST,
+        MIMER_ABSOLUTE,
+        MIMER_RELATIVE,
+};
 
 
 /**
@@ -130,7 +112,7 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
     MimerReturnCode return_code;
 
     if (PDO_MIMER_SCROLLABLE)
-        return_code = MimerFetchScroll(MIMER_STMT, pdo_mimer_convert_fetch_op(ori), (int32_t) offset);
+        return_code = MimerFetchScroll(MIMER_STMT, mimer_fetch_op_lut[ori], (int32_t) offset);
     else
         return_code = MimerFetch(MIMER_STMT);
 
