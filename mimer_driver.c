@@ -551,36 +551,33 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
         pdo_throw_exception(PDO_MIMER_FEATURE_NOT_IMPLEMENTED, "Persistent connections not yet supported", &dbh->error_code);
     }
 
-    enum { dbname, user, password, pass, pwd, num_opts }; /* for ease of use when accessing opts */
+    
+    enum { dbname, user, password, num_opts }; /* for ease of use when accessing opts */
     struct pdo_data_src_parser opts[] = { /* the data source name options to provide to the user */
             /* if the user does not give database name, NULL will trigger default database connection */
             { "dbname", NULL, 0 },
             { "user", "", 0 }, /* MimerBeginSession crashes on NULL user */
-            { "password", NULL, 0 },
-            {"pass", NULL, 0},
-            {"pwd", NULL, 0},
+            { "password", NULL, 0 }
     };
 
     /* parse the data source name, getting user provided values, swapping out the default values for the user provided ones */
     /* when the user provides values to the matching provided options, the freeme field is set to one requiring freeing
      * of the optval field */
     php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, opts, num_opts);
-    if (!dbh->username && opts[user].optval) // username arg in PDO constructor takes precedence
+    if (!dbh->username && opts[user].optval) /* username arg in PDO constructor takes precedence */
         dbh->username = pestrdup(opts[user].optval, dbh->is_persistent);
-    if (!dbh->password && (opts[password].optval || opts[pass].optval || opts[pwd].optval)) // password arg in PDO constructor takes precedence
-        dbh->password = pestrdup(opts[password].optval ?: opts[pass].optval ?: opts[pwd].optval, dbh->is_persistent);
+    if (!dbh->password && opts[password].optval) /* password arg in PDO constructor takes precedence */
+        dbh->password = pestrdup(opts[password].optval, dbh->is_persistent);
 
-    /* TODO: add compatability for MimerBeginSession() and MimerBeginSessionC() */
-    /* TODO: add session-persistence functionality */
     dbh->driver_data = NEW_PDO_MIMER_DBH(dbh->is_persistent); /* needs to be created here to access MIMER_SESSION below */
     if (!MIMER_SUCCEEDED(MimerBeginSession8(opts[dbname].optval, dbh->username, dbh->password, &MIMER_SESSION))) {
         pdo_mimer_dbh_error();
         mimer_throw_except(dbh);
-        mimer_handle_closer(dbh); /* call handle closer to free memory */
+        mimer_handle_closer(dbh); /* call handle closer to free driver data */
         goto cleanup;
     }
 
-
+    /* provide the PDO handler with information about our driver */
     dbh->methods = &mimer_methods; /* an array of methods that PDO can call provided by our driver */
     dbh->skip_param_evt = 0b1111111 ^ (1 << PDO_PARAM_EVT_EXEC_PRE); /* skip all but exec_pre param events */
 
