@@ -658,23 +658,6 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
 }
 
 
-static int pdo_mimer_set_attr(pdo_stmt_t *stmt, zend_long attr, zval *val) {
-    return 0;
-}
-
-static int pdo_mimer_get_attr(pdo_stmt_t *stmt, zend_long attr, zval *val) {
-    return 0;
-}
-
-static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *return_value) {
-    return 0;
-}
-
-static int pdo_mimer_next_rowset(pdo_stmt_t *stmt) {
-    return 0;
-}
-
-
 /**
  * @brief The function PDO calls to close the current cursor.
  * @param stmt [in] A pointer to the PDOStatement handle object.
@@ -732,9 +715,9 @@ const struct pdo_stmt_methods pdo_mimer_stmt_methods = {
         pdo_mimer_describe_col,   /* statement describer method */
         pdo_mimer_stmt_get_col_data,   /* statement get column method */
         pdo_mimer_stmt_param_hook,   /* statement parameter hook method */
-        pdo_mimer_set_attr,   /* statement set attribute method */
-        pdo_mimer_get_attr,   /* statement get attribute method */
-        pdo_mimer_get_column_meta,   /* statement get column data method */
-        pdo_mimer_next_rowset,   /* next statement rowset method */
+        NULL,   /* statement set attribute method */
+        NULL,   /* statement get attribute method */
+        NULL,   /* statement get column data method */
+        NULL,   /* next statement rowset method */
         pdo_mimer_cursor_closer,   /* statement cursor closer method */
 };

@@ -44,7 +44,7 @@ check_config() {
 for arg in "${@}"; do :
   shift
   if is_help "${arg}"; then
-    echo "usage: clean.sh [-f|--force] [/path/to/php/install/dir]"
+    echo "usage: pre-configure.sh [-f|--force] [/path/to/php/install/dir]"
     exit 0
   fi
   set -- "$@" "$arg"
@@ -68,3 +68,4 @@ if ! [ -f "Makefile" ] || is_force; then
 fi
 
 test "Makefile" -ot "configure" && check_config "${@}"
+exit 0
