@@ -125,6 +125,51 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
 }
 
 
+typedef struct mimer_column {
+    const struct mimer_catalog_schema_name {
+        char *catalog;
+        char *schema;
+        char *name;
+    } table;
+
+    const uint ordinal_position;
+
+    const void *_default;
+    const char *data_type;
+
+    const struct mimer_column_length {
+        uint lob;
+        struct mimer_column_character_length {
+            uint max;
+            uint octet;
+        } char_len;
+    } len;
+
+    const struct mimer_column_precision {
+        union mimer_column_numeric_precision {
+            uint precision;
+            uint radix;
+            uint scale;
+        } numeric;
+
+        union mimer_column_datetime_precision {
+            uint precision;
+            struct mimer_column_interval {
+                char *type;
+                char *precision;
+            } interval;
+        } datetime;
+    } precision;
+
+    const struct mimer_catalog_schema_name character_set;
+    const struct mimer_catalog_schema_name collation;
+    const struct mimer_catalog_schema_name domain;
+    const struct mimer_catalog_schema_name user_defines;
+
+    uint card;
+} mimer_column;
+
+
 /**
  * @brief This function will be called by PDO to query information about a particular column.
  * @param stmt [in] A pointer to the PDOStatement handle object.
@@ -134,13 +179,26 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
  * @remark PDO is zero-indexed for columns, Mimer SQL's C API is one-indexed.
  */
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
+    pdo_dbh_t *dbh = stmt->dbh;
     MimerReturnCode return_code;
+    MimerStatement statement = MIMERNULLHANDLE;
     int mimcolno = colno + 1;
+    struct mimer_column_length maxlen = {};
+    struct mimer_column_precision precision = {};
+    char *query;
 
     MimerGetStr(MimerColumnName8, str_buf, return_code, MIMER_STMT, mimcolno);
     if (!MIMER_SUCCEEDED(return_code)) {
         pdo_mimer_stmt_error();
         return 0;
+    }
+
+    spprintf(&query, 0, "SELECT (LOB_MAXIMUM_LENGTH, CHARACTER_MAXIMUM_LENGTH, "
+                        "CHARACTER_OCTET_LENGTH) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND "
+                        "TABLE_NAME = ? AND COLUMN_NAME = ?");
+
+    if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(MIMER_SESSION, query, MIMER_FORWARD_ONLY, &statement))) {
+
     }
 
 	stmt->columns[colno] = (struct pdo_column_data) {
@@ -798,7 +856,7 @@ static inline const char* get_native_type_string(int32_t col_type) {
             return "RECORD";
 
         default:
-            return "UNKOWN";
+            return "UNKNOWN";
     }
 }
 
@@ -831,12 +889,12 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
     array_init(return_value);
     array_init(&flags);
 
+    /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment */
     if (col_type == MIMER_UNSIGNED_INTEGER || col_type == MIMER_T_UNSIGNED_INTEGER ||
         col_type == MIMER_T_UNSIGNED_SMALLINT || col_type == MIMER_T_UNSIGNED_BIGINT)
         add_next_index_string(&flags, "unsigned");
     if (MimerIsBlob(col_type) || MimerIsClob(col_type) || MimerIsNclob(col_type))
         add_next_index_string(&flags, "blob");
-    /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment */
 
     if (MimerIsInt32(col_type) || MimerIsInt64(col_type)) {
         php_type = "integer";
