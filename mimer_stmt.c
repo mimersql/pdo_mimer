@@ -135,9 +135,9 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
  */
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
     MimerReturnCode return_code;
-    int mim_colno = colno + 1;
+    int mimcolno = colno + 1;
 
-    MimerGetStr(MimerColumnName8, str_buf, return_code, MIMER_STMT, mim_colno);
+    MimerGetStr(MimerColumnName8, str_buf, return_code, MIMER_STMT, mimcolno);
     if (!MIMER_SUCCEEDED(return_code)) {
         pdo_mimer_stmt_error();
         return 0;
@@ -146,7 +146,7 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
 	stmt->columns[colno] = (struct pdo_column_data) {
             zend_string_init(str_buf, return_code, 0), /* return_code gives str len */
             SIZE_MAX,
-            0 /* TODO: support precision? */
+            0 /* TODO */
     };
 
     return 1;
@@ -166,8 +166,8 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     MimerReturnCode return_code;
     int32_t column_type;
 
-    int16_t mim_colno = colno + 1;
-    if (!MIMER_SUCCEEDED(column_type = MimerColumnType(MIMER_STMT, mim_colno))) {
+    int16_t mimcolno = colno + 1;
+    if (!MIMER_SUCCEEDED(column_type = MimerColumnType(MIMER_STMT, mimcolno))) {
         pdo_mimer_stmt_error();
         return 0;
     }
@@ -175,7 +175,7 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     if (MimerIsInt64(column_type)) {
         int64_t data;
 
-        if (MIMER_SUCCEEDED(return_code = MimerGetInt64(MIMER_STMT, mim_colno, &data))) {
+        if (MIMER_SUCCEEDED(return_code = MimerGetInt64(MIMER_STMT, mimcolno, &data))) {
             ZVAL_LONG(result, data);
             return 1;
         }
@@ -184,18 +184,18 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     else if (MimerIsInt32(column_type)) {
         int32_t data;
 
-        if (MIMER_SUCCEEDED(return_code = MimerGetInt32(MIMER_STMT, mim_colno, &data))) {
+        if (MIMER_SUCCEEDED(return_code = MimerGetInt32(MIMER_STMT, mimcolno, &data))) {
             ZVAL_LONG(result, data);
             return 1;
         }
     }
 
     else if (MimerIsString(column_type)){
-        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
+        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mimcolno, NULL, 0))) {
             size_t str_len = return_code + 1; // +1 for null-terminator
             char *data = emalloc(str_len);
 
-            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, data, str_len)))
+            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mimcolno, data, str_len)))
                 ZVAL_STRING(result, data);
 
             efree(data);
@@ -203,7 +203,7 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     }
 
     else if (MimerIsBlob(column_type)) {
-        php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
+        php_stream *stream = pdo_mimer_create_lob_stream(stmt, mimcolno, MIMER_BLOB);
 
         if (stream) {
             php_stream_to_zval(stream, result)
@@ -678,6 +678,192 @@ static int pdo_mimer_cursor_closer(pdo_stmt_t *stmt) {
 }
 
 
+static inline const char* get_native_type_string(int32_t col_type) {
+    switch(col_type) {
+        case MIMER_BINARY:
+            return "BINARY";
+        case MIMER_BINARY_VARYING:
+            return "VARBINARY";
+        case MIMER_BLOB:
+        case MIMER_BLOB_LOCATOR:
+        case MIMER_NATIVE_BLOB:
+        case MIMER_NATIVE_BLOB_LOCATOR:
+            return "BLOB";
+            
+        case MIMER_CHARACTER:
+            return "CHAR";
+        case MIMER_CHARACTER_VARYING:
+            return "VARCHAR";
+        case MIMER_CLOB:
+        case MIMER_CLOB_LOCATOR:
+        case MIMER_NATIVE_CLOB:
+        case MIMER_NATIVE_CLOB_LOCATOR:
+            return "CLOB";
+
+        case MIMER_NCHAR:
+            return "NCHAR";
+        case MIMER_NCHAR_VARYING:
+            return "NVARCHAR";
+        case MIMER_NCLOB:
+        case MIMER_NCLOB_LOCATOR:
+        case MIMER_NATIVE_NCLOB:
+        case MIMER_NATIVE_NCLOB_LOCATOR:
+            return "NCLOB";
+            
+        case MIMER_BOOLEAN:
+            return "BOOLEAN";
+
+        case MIMER_DECIMAL:
+            return "DECIMAL";
+
+        case MIMER_FLOAT:
+        case MIMER_T_FLOAT:
+            return "FLOAT";
+
+        case MIMER_INTEGER:
+        case MIMER_NATIVE_INTEGER:
+        case MIMER_NATIVE_INTEGER_NULLABLE:
+        case MIMER_T_INTEGER:
+        case MIMER_T_UNSIGNED_INTEGER:
+        case MIMER_UNSIGNED_INTEGER:
+            return "INTEGER";
+
+        case MIMER_NATIVE_BIGINT:
+        case MIMER_NATIVE_BIGINT_NULLABLE:
+        case MIMER_T_BIGINT:
+        case MIMER_T_UNSIGNED_BIGINT:
+            return "BIGINT";
+
+        case MIMER_NATIVE_DOUBLE:
+        case MIMER_NATIVE_DOUBLE_NULLABLE:
+        case MIMER_T_DOUBLE:
+            return "DOUBLE";
+
+        case MIMER_NATIVE_REAL:
+        case MIMER_NATIVE_REAL_NULLABLE:
+        case MIMER_T_REAL:
+            return "REAL";
+
+        case MIMER_NATIVE_SMALLINT:
+        case MIMER_NATIVE_SMALLINT_NULLABLE:
+        case MIMER_T_SMALLINT:
+        case MIMER_T_UNSIGNED_SMALLINT:
+            return "SMALLINT";
+
+        case MIMER_DATE:
+            return "DATE";
+        case MIMER_TIME:
+            return "TIME";
+        case MIMER_TIMESTAMP:
+            return "TIMESTAMP";
+
+        case MIMER_INTERVAL_DAY:
+            return "INTERVAL_DAY";
+        case MIMER_INTERVAL_DAY_TO_HOUR:
+            return "INTERVAL_DAY_TO_HOUR";
+        case MIMER_INTERVAL_DAY_TO_MINUTE:
+            return "INTERVAL_DAY_TO_MINUTE";
+        case MIMER_INTERVAL_DAY_TO_SECOND:
+            return "INTERVAL_DAY_TO_SECOND";
+        case MIMER_INTERVAL_HOUR:
+            return "INTERVAL_HOUR";
+        case MIMER_INTERVAL_HOUR_TO_MINUTE:
+            return "INTERVAL_HOUR_TO_MINUTE";
+        case MIMER_INTERVAL_HOUR_TO_SECOND:
+            return "INTERVAL_HOUR_TO_SECOND";
+        case MIMER_INTERVAL_MINUTE:
+            return "INTERVAL_MINUTE";
+        case MIMER_INTERVAL_MINUTE_TO_SECOND:
+            return "INTERVAL_MINUTE_TO_SECOND";
+        case MIMER_INTERVAL_MONTH:
+            return "INTERVAL_MONTH";
+        case MIMER_INTERVAL_SECOND:
+            return "INTERVAL_SECOND";
+        case MIMER_INTERVAL_YEAR:
+            return "INTERVAL_YEAR";
+        case MIMER_INTERVAL_YEAR_TO_MONTH:
+            return "INTERVAL_YEAR_TO_MONTH";
+
+        case MIMER_UTF8:
+            return "UTF8";
+
+        case MIMER_UUID:
+            return "UUID";
+
+        case MIMER_LIKE_PATTERN:
+            return "LIKE_PATTERN";
+        case MIMER_NUMERIC:
+            return "NUMERIC";
+        case MIMER_RECORD:
+            return "RECORD";
+
+        default:
+            return "UNKOWN";
+    }
+}
+
+static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *return_value) {
+    int16_t mimcolno;
+    int32_t col_type;
+    enum pdo_param_type pdo_param_type;
+    const char *php_type;
+    const char *native_type;
+    zval flags;
+
+    if (!stmt->columns) {
+        if (!MIMER_SUCCEEDED(stmt->column_count = MimerColumnCount(MIMER_STMT))) {
+            pdo_mimer_stmt_error();
+            return FAILURE;
+        }
+
+        stmt->columns = ecalloc(stmt->column_count, sizeof(struct pdo_column_data));
+        if (!pdo_mimer_describe_col(stmt, colno))
+            return FAILURE;
+    }
+
+
+    mimcolno = colno + 1;
+    if (!MIMER_SUCCEEDED(col_type = MimerColumnType(MIMER_STMT, mimcolno))) {
+        pdo_mimer_stmt_error();
+        return FAILURE;
+    }
+
+    array_init(return_value);
+    array_init(&flags);
+
+    if (col_type == MIMER_UNSIGNED_INTEGER || col_type == MIMER_T_UNSIGNED_INTEGER ||
+        col_type == MIMER_T_UNSIGNED_SMALLINT || col_type == MIMER_T_UNSIGNED_BIGINT)
+        add_next_index_string(&flags, "unsigned");
+    if (MimerIsBlob(col_type) || MimerIsClob(col_type) || MimerIsNclob(col_type))
+        add_next_index_string(&flags, "blob");
+    /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment */
+
+    if (MimerIsInt32(col_type) || MimerIsInt64(col_type)) {
+        php_type = "integer";
+        pdo_param_type = PDO_PARAM_INT;
+    } else if (MimerIsFloat(col_type) || MimerIsDouble(col_type)) {
+        php_type = "double";
+        pdo_param_type = PDO_PARAM_INT;
+    } else if (MimerIsBoolean(col_type)) {
+        php_type = "boolean";
+        pdo_param_type = PDO_PARAM_BOOL;
+    } else {
+        php_type = "string";
+        pdo_param_type = PDO_PARAM_STR;
+    }
+
+    native_type = get_native_type_string(col_type);
+
+    add_assoc_long(return_value, "pdo_type", pdo_param_type);
+    add_assoc_string(return_value, "type", php_type);
+    add_assoc_string(return_value, "native_type", native_type);
+    /* TODO: scale, table */
+
+    add_assoc_zval(return_value, "flags", &flags);
+    return SUCCESS;
+}
+
+
 /**
  * @brief The PHP method <code>mimerAddBatch()</code> extending the <code>PDOStatement</code> class to be able to set
  * multiple parameter values on a prepared statement with Mimer SQL.
@@ -717,7 +903,7 @@ const struct pdo_stmt_methods pdo_mimer_stmt_methods = {
         pdo_mimer_stmt_param_hook,   /* statement parameter hook method */
         NULL,   /* statement set attribute method */
         NULL,   /* statement get attribute method */
-        NULL,   /* statement get column data method */
+        pdo_mimer_get_column_meta,   /* statement get column data method */
         NULL,   /* next statement rowset method */
         pdo_mimer_cursor_closer,   /* statement cursor closer method */
 };
