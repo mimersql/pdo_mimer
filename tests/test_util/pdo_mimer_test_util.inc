@@ -200,7 +200,7 @@ class PDOMimerTestUtil {
             echo "Testing table " . $tbl->getName() . "... ";
             if ($msg = $func($tbl, $dsn)){
                 echo "FAILURE\n";
-                echo "\t" . $msg;
+                echo "\t" . $msg . "\n";
             } else
                 echo "OK\n";
         }
