@@ -198,6 +198,19 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
+    else if (MimerIsBinary(column_type)){
+        if (MIMER_SUCCEEDED(return_code = MimerGetBinary(MIMER_STMT, mim_colno, NULL, 0))) {
+            size_t len = return_code + 1;
+            char *data = emalloc(len);
+            data[len-1] = '\0';
+
+            if (MIMER_SUCCEEDED(return_code = MimerGetBinary(MIMER_STMT, mim_colno, data, len)))
+                ZVAL_STRING(result, data);
+
+            efree(data);
+        }
+    }
+
     else if (MimerIsString(column_type)){
 
         /* Temporary block for special handling of DECIMAL to prevent segfault.
