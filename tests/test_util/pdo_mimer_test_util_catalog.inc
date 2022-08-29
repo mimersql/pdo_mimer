@@ -92,7 +92,7 @@ class PDOMimerTestCatalog {
 
         $valsFloats = [
             ["id", "decc", "doublec", "floatc", "realc"],
-            [1,     30.2,   34.4242,   98.23,   345.32 ]
+            [1,     30.5,   34.125,   0.25,   345.0625 ]
         ];
 
         $colStr = [
