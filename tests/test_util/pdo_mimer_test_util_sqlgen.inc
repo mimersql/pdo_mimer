@@ -115,7 +115,7 @@ class PDOMimerTestSQLGenerator {
             case PDOMimerDataType::BINARY:
             case PDOMimerDataType::VARBINARY:
             case PDOMimerDataType::BLOB:
-                $hexstr = dechex($val);
+                $hexstr = bin2hex($val);
                 return "x'$hexstr'";
             
             case PDOMimerDataType::DATE:

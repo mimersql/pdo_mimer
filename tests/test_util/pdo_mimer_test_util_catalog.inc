@@ -20,8 +20,6 @@ class PDOMimerTestCatalog {
         self::addPreset(self::makeDBPerson());
         self::addPreset(self::makeDBLOBs());
         self::addPreset(self::makeDBBasic());
-        self::addPreset(self::makeDBSimpleDataTypes());
-        self::addPreset(self::makeDBComplexDataTypes());
     }
 
     /**
@@ -128,18 +126,18 @@ class PDOMimerTestCatalog {
 
         $valsLobs = [
             ["id",  "blobc",     "clobc",   "nclobc"                ],
-            [1,     0xDEADC0DE,  "dolor",   "永远不会跑来跑去抛弃你"  ]
+            [1,     "xyz",      "dolor",   "永远不会跑来跑去抛弃你"  ]
         ];
 
         $colBin = [
             new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
-            new PDOMimerTestColumn("binaryc", PDOMimerDataType::BINARY),
+            new PDOMimerTestColumn("binaryc", PDOMimerDataType::BINARY, false, [3]),
             new PDOMimerTestColumn("varbinaryc", PDOMimerDataType::VARBINARY, false, [50])
         ];
 
         $valsBin = [
             ["id",  "binaryc",  "varbinaryc"    ],
-            [1,      0xF0,      0xDEADC0DE      ]
+            [1,     "xyz",      "xyz"          ]
         ];
 
         $colDate = [
@@ -188,91 +186,6 @@ class PDOMimerTestCatalog {
     }
 
     /**
-     * Table with each datatype that is supported by the Mimer C API's
-     * input/output routines.
-     */
-    private static function makeDBSimpleDataTypes() {
-        $tstDb = new PDOMimerTestPreset("db_simpleDatatypes");
-        $tbl = new PDOMimerTestTable("simpleDatatypes"); 
-
-        $columns = [
-            new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
-            new PDOMimerTestColumn("smallintc", PDOMimerDataType::SMALLINT),
-            new PDOMimerTestColumn("bigintc", PDOMimerDataType::BIGINT),
-            new PDOMimerTestColumn("intc", PDOMimerDataType::INT),
-            new PDOMimerTestColumn("floatc", PDOMimerDataType::FLOAT),
-            new PDOMimerTestColumn("double_precisionc", PDOMimerDataType::DOUBLE_PRECISION),
-            new PDOMimerTestColumn("realc", PDOMimerDataType::REAL),
-            new PDOMimerTestColumn("charc", PDOMimerDataType::CHAR, false, [50]),
-            new PDOMimerTestColumn("varcharc", PDOMimerDataType::VARCHAR, false, [50]),
-            new PDOMimerTestColumn("clobc", PDOMimerDataType::CLOB),
-            new PDOMimerTestColumn("ncharc", PDOMimerDataType::NCHAR, false, [50]),
-            new PDOMimerTestColumn("nvarcharc", PDOMimerDataType::NVARCHAR, false, [50]),
-            new PDOMimerTestColumn("nclobc", PDOMimerDataType::NCLOB),
-            new PDOMimerTestColumn("binaryc", PDOMimerDataType::BINARY),
-            new PDOMimerTestColumn("varbinaryc", PDOMimerDataType::VARBINARY, false, [50]),
-            new PDOMimerTestColumn("blobc", PDOMimerDataType::BLOB),
-            new PDOMimerTestColumn("booleanc", PDOMimerDataType::BOOLEAN)
-        ];
-
-        foreach($columns as $col)
-            $tbl->addColumn($col);
-        
-        $vals = [
-            [
-                "id", "intc", "smallintc", "bigintc", 
-                "double_precisionc", "floatc", "realc", 
-                "charc", "varcharc", "clobc", "ncharc", "nvarcharc", "nclobc", 
-                "binaryc", "varbinaryc", "blobc",
-                "booleanc"
-            ],
-            [
-                1, -14, 0, 200, 
-                1.797, 4.940, 3.402,
-                "lorem", "ipsum", "dolor", "绝不会放弃你", "永远不会让你失望", "永远不会跑来跑去抛弃你",
-                0xF0, 0xDEADC0DE, 0x1A7D3A9C,
-                true        
-            ]
-        ];
-
-        $tbl->addValues($vals);
-        $tstDb->addTable($tbl);
-        return $tstDb;
-    }
-
-    /**
-     * Table with each datatype that is NOT supported by the Mimer C API's
-     * input/output routines.
-     * 
-     * TODO: Extend for all the interval types
-     */
-    private static function makeDBComplexDataTypes() {
-        $tstDb = new PDOMimerTestPreset("db_complexDatatypes");
-        $tbl = new PDOMimerTestTable("complexDatatypes");
-
-        $columns = [
-            new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
-            new PDOMimerTestColumn("decc", PDOMimerDataType::DEC, false, [15, 3]),
-            new PDOMimerTestColumn("datec", PDOMimerDataType::DATE),
-            new PDOMimerTestColumn("timec", PDOMimerDataType::TIME),
-            new PDOMimerTestColumn("timestampc", PDOMimerDataType::TIMESTAMP),
-            new PDOMimerTestColumn("intervalc", PDOMimerDataType::INTERVAL),
-        ];
-
-        foreach($columns as $col)
-            $tbl->addColumn($col);
-        
-        $vals = [
-            ["id", "decc",  "datec",        "timec",    "timestampc",           "intervalc"],
-            [1,     10.309, "1995-02-09",   "09:14:00", "2021-12-31 23:59:30",  "1:30"]
-        ];
-
-        $tbl->addValues($vals);
-        $tstDb->addTable($tbl);
-        return $tstDb;
-    }
-
-    /**
      * Simple table representing a person.
      */
     private static function makeDBPerson() {
@@ -298,7 +211,7 @@ class PDOMimerTestCatalog {
     }
 
     /**
-     * For LOB specific tests
+     * For LOB specific tests.
      */
     private static function makeDBLOBs() {
         $tstDb = new PDOMimerTestPreset("db_lobs");
@@ -313,7 +226,7 @@ class PDOMimerTestCatalog {
         $tbl->addColumn($blob);
         $vals = [
             ["id",  "clobcol",    "nclobcol",     "blobcol"],
-            [1,     "abcdefg",    "绝不会放弃你",  0xF0F0F0F0]
+            [1,     "abcdefg",    "绝不会放弃你",  "xyz"]
         ];
         $tbl->addValues($vals);
         $tstDb->addTable($tbl);
@@ -321,7 +234,8 @@ class PDOMimerTestCatalog {
     }
 
     /**
-     * Basic table for simple tests.
+     * Basic table useful for tests focused on behaviour
+     * rather than e.g. data types.
      */
     private static function makeDBBasic() {
         $tstDb = new PDOMimerTestPreset("db_basic");
