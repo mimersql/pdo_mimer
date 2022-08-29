@@ -191,7 +191,21 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     }
 
     else if (MimerIsString(column_type)){
-        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
+
+        /* Temporary block for special handling of DECIMAL to prevent segfault.
+        Await update to API. */
+        if (MimerIsDecimal(column_type)){
+            const int max_chars = 100; // max. num. characters of decimal number strings + some margin
+            char dec_str[max_chars];
+            double dec;
+
+            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, dec_str, max_chars))){
+                dec = atof(dec_str);
+                ZVAL_DOUBLE(result, dec);
+            }
+        }
+
+        else if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
             size_t str_len = return_code + 1; // +1 for null-terminator
             char *data = emalloc(str_len);
 
