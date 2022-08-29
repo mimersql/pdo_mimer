@@ -31,9 +31,13 @@ class PDOMimerTestSetup {
         $db = new PDO(PDOMimerTestConfig::getDSN());
 
         // Execute generated script
-        foreach($script as $statement){
-            if ($db->exec($statement) === false) // docs on PDO::exec suggest === here
-                die("Could not execute statement:\n'$statement'");
+        try {
+            foreach($script as $statement){
+                if ($db->exec($statement) === false) // docs on PDO::exec suggest === here
+                    die("Could not execute statement:\n'$statement'");
+            }
+        } catch (PDOException $e){
+            die($e->getMessage());
         }
     }
 
