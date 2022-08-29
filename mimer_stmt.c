@@ -190,6 +190,14 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
+    else if (MimerIsDouble(column_type)) {
+        double data;
+        if (MIMER_SUCCEEDED(return_code = MimerGetDouble(MIMER_STMT, mim_colno, &data))) {
+            ZVAL_DOUBLE(result, data);
+            return 1;
+        }
+    }
+
     else if (MimerIsString(column_type)){
 
         /* Temporary block for special handling of DECIMAL to prevent segfault.
