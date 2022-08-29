@@ -84,20 +84,22 @@ class PDOMimerTestCatalog {
 
         $colFloats = [
             new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
-            new PDOMimerTestColumn("decc", PDOMimerDataType::DEC, false, [15, 3]),
+            new PDOMimerTestColumn("decc", PDOMimerDataType::DEC, false, [5, 3]),
             new PDOMimerTestColumn("doublec", PDOMimerDataType::DOUBLE_PRECISION),
             new PDOMimerTestColumn("floatc", PDOMimerDataType::FLOAT),
             new PDOMimerTestColumn("realc", PDOMimerDataType::REAL)
         ];
 
+        /* double and float have values that can be perfectly represented with 
+            double precision but not with single */
         $valsFloats = [
-            ["id", "decc", "doublec", "floatc", "realc"],
-            [1,     30.5,   34.125,   0.25,   345.0625 ]
+            ["id", "decc",      "doublec",          "floatc",               "realc"],
+            [1,     30.125,     2.9802322387695E-8,  2.9802322387695E-8,     345.0625 ]
         ];
 
         $colStr = [
             new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
-            new PDOMimerTestColumn("charc", PDOMimerDataType::CHAR, false, [50]),
+            new PDOMimerTestColumn("charc", PDOMimerDataType::CHAR, false, [5]),
             new PDOMimerTestColumn("varcharc", PDOMimerDataType::VARCHAR, false, [50])
         ];
 
@@ -108,7 +110,7 @@ class PDOMimerTestCatalog {
 
         $colNstr = [
             new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
-            new PDOMimerTestColumn("ncharc", PDOMimerDataType::NCHAR, false, [50]),
+            new PDOMimerTestColumn("ncharc", PDOMimerDataType::NCHAR, false, [6]),
             new PDOMimerTestColumn("nvarcharc", PDOMimerDataType::NVARCHAR, false, [50])
         ];
 
