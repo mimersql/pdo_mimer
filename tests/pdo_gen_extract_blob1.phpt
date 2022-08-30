@@ -29,11 +29,13 @@ try {
     $stmt->fetch(PDO::FETCH_BOUND);
     
     $binStr = fread($lob, 4); 
-    $hexStr = bin2hex($binStr);
-    
-    $expVal = dechex($tbl->getVal($colName, 0));
-    if($expVal !== $hexStr)
-      die("Expected value ($expVal) differ from retrieved value ($hexStr)");
+    $expVal = $tbl->getVal($colName, 0);
+
+    $fetchedAsHex = bin2hex($binStr);
+    $expAsHex = bin2hex($expVal);
+
+    if($expAsHex !== $fetchedAsHex)
+      die("Expected value ($expAsHex) differ from fetched value ($fetchedAsHex)");
 
 } catch (PDOException $e) {
     print $e->getMessage();
