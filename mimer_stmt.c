@@ -211,6 +211,13 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
+    if (MimerIsBoolean(column_type)) {
+        if (MIMER_SUCCEEDED(return_code = MimerGetBoolean(MIMER_STMT, mim_colno))) {
+            ZVAL_BOOL(result, return_code);
+            return 1;
+        }
+    }
+
     else if (MimerIsString(column_type)){
 
         /* Temporary block for special handling of DECIMAL to prevent segfault.
