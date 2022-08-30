@@ -48,8 +48,8 @@ function test($table, $dsn): ?string {
             $stmt->fetch(PDO::FETCH_BOUND);
             
             if ($inVal !== $outVar)
-                die("Column $colName: Fetched value ($outVar) differ " . 
-                        "from inserted value ($inVal)\n");
+                return "Column $colName: Fetched value ($outVar) differ " . 
+                        "from inserted value ($inVal)\n";
             
             $outVar = null; // keeping value gives confusing error message when fetch() fails
         }
