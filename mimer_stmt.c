@@ -190,14 +190,6 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
-    else if (MimerIsDouble(column_type)) {
-        double data;
-        if (MIMER_SUCCEEDED(return_code = MimerGetDouble(MIMER_STMT, mim_colno, &data))) {
-            ZVAL_DOUBLE(result, data);
-            return 1;
-        }
-    }
-
     else if (MimerIsBinary(column_type)){
         if (MIMER_SUCCEEDED(return_code = MimerGetBinary(MIMER_STMT, mim_colno, NULL, 0))) {
             size_t len = return_code + 1;
@@ -211,37 +203,31 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
-    if (MimerIsBoolean(column_type)) {
+    else if (MimerIsBoolean(column_type)) {
         if (MIMER_SUCCEEDED(return_code = MimerGetBoolean(MIMER_STMT, mim_colno))) {
             ZVAL_BOOL(result, return_code);
             return 1;
         }
     }
 
-    else if (MimerIsString(column_type)){
-
-        /* Temporary block for special handling of DECIMAL to prevent segfault.
-        Await update to API. */
-        if (MimerIsDecimal(column_type)){
-            const int max_chars = 100; // max. num. characters of decimal number strings + some margin
-            char dec_str[max_chars];
-            double dec;
-
-            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, dec_str, max_chars))){
-                dec = atof(dec_str);
-                ZVAL_DOUBLE(result, dec);
-            }
+    else if (MimerIsDouble(column_type)){
+        double data;
+        if (MIMER_SUCCEEDED(return_code = MimerGetDouble(MIMER_STMT, mim_colno, &data))) {
+            ZVAL_DOUBLE(result, data);
+            convert_to_string(result);
+            return 1;
         }
+    }
 
-        else if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
-            size_t str_len = return_code + 1; // +1 for null-terminator
-            char *data = emalloc(str_len);
-
-            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, data, str_len)))
-                ZVAL_STRING(result, data);
-
-            efree(data);
-        }
+    else if(MimerIsDecimal(column_type) || MimerIsDatetime(column_type)){
+        /* TODO: Await update to API.
+            Temporary block for handling types which currently gives segfault
+            when checking string length.  */
+        const int max_chars = 100;
+        char str[max_chars];
+        
+        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, str, max_chars)))
+            ZVAL_STRING(result, str);   
     }
 
     else if (MimerIsBlob(column_type)) {
@@ -253,6 +239,18 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
             pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
                                    "Unable to allocate php stream");
             return 0;
+        }
+    }
+
+    else if (MimerIsString(column_type)){
+        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, NULL, 0))) {
+            size_t str_len = return_code + 1; // +1 for null-terminator
+            char *data = emalloc(str_len);
+
+            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mim_colno, data, str_len)))
+                ZVAL_STRING(result, data);
+
+            efree(data);
         }
     }
 
@@ -611,7 +609,14 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
             break;
 
         case PDO_PARAM_STR:
-            return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
+            if (!MIMER_SUCCEEDED(return_code = MimerParameterType(MIMER_STMT, paramno)))
+                break;
+            if (MimerIsDouble(return_code)){
+                double val = strtod(Z_STRVAL_P(parameter), NULL);
+                return_code = MimerSetDouble(MIMER_STMT, paramno, val);
+            }
+            else 
+                return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
             break;
 
         case PDO_PARAM_LOB:

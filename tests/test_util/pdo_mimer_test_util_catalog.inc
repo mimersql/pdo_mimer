@@ -91,8 +91,8 @@ class PDOMimerTestCatalog {
         /* double and float have values that can be perfectly represented with 
             double precision but not with single */
         $valsFloats = [
-            ["id", "decc",      "doublec",          "floatc",               "realc"],
-            [1,     30.125,     2.9802322387695E-8,  2.9802322387695E-8,     345.0625 ]
+            ["id", "decc",      "doublec",              "floatc",               "realc"],
+            [1,    "30.125",    "2.9802322387695E-8",   "2.9802322387695E-8",   "345.0625"]
         ];
 
         $colStr = [
@@ -144,7 +144,7 @@ class PDOMimerTestCatalog {
             new PDOMimerTestColumn("id", PDOMimerDataType::INT, true),
             new PDOMimerTestColumn("datec", PDOMimerDataType::DATE),
             new PDOMimerTestColumn("timec", PDOMimerDataType::TIME),
-            new PDOMimerTestColumn("timestampc", PDOMimerDataType::TIMESTAMP)
+            new PDOMimerTestColumn("timestampc", PDOMimerDataType::TIMESTAMP, false, [0])
         ];
 
         $valsDate = [
