@@ -30,4 +30,4 @@ try {
 ?>
 
 --EXPECT--
-SQLSTATE[IM001]: Driver does not support this function: driver does not support getColumnMeta()
+SQLSTATE[IM001]: Driver does not support this function: driver doesn't support meta data
