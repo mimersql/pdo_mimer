@@ -167,7 +167,6 @@ typedef enum pdo_mimer_attr {
 typedef struct pdo_mimer_lob_stream_data_t {
 	MimerLob lob_handle;
     int32_t lob_type;
-    uint8_t eof;
 } pdo_mimer_lob_stream_data;
 
 extern php_stream *pdo_mimer_create_lob_stream(pdo_stmt_t *stmt, int colno, int32_t lob_type);

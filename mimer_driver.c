@@ -48,13 +48,13 @@ static ssize_t mimer_lob_read(php_stream *stream, char *buf, size_t count) {
     pdo_mimer_lob_stream_data *stream_data = (pdo_mimer_lob_stream_data*)stream->abstract;
     switch(stream_data->lob_type){
         case MIMER_BLOB:
-            if (stream_data->eof)
+            if (stream->eof)
                 return 0;
 
             rc = MimerGetBlobData(&stream_data->lob_handle, buf, count);
             if (MIMER_SUCCEEDED(rc)) {
-                stream_data->eof = rc <= count;
-                return rc <= count ? rc : (ssize_t) count;
+                stream->eof = rc <= count;
+                return stream->eof ? rc : (ssize_t) count;
             }
             return -1;
             
