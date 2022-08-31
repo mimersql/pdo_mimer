@@ -61,5 +61,4 @@ Testing table string... OK
 Testing table national_string... OK
 Testing table binary... OK
 Testing table datetime... OK
-Testing table interval... OK
 Testing table boolean... OK
