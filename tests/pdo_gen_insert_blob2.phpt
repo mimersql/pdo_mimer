@@ -23,23 +23,25 @@ $util = new PDOMimerTestUtil("db_lobs");
 $dsn = $util->getFullDSN();
 $tblName = "lobs";
 $colName = "blobcol";
+$tbl = $util->getTable($tblName);
 $nextID = $util->getNextTableID($tblName);
 
 try {
-    // Put test data in file
-    $tstnum = 0x61626364;
-    $binStr = pack('i', $tstnum);
+    // Put test data in file (repeat it until file is larger that process memory)
+    $tstBinStr = $tbl->getVal($colName, 0);
+    $binStrLen = strlen($tstBinStr); 
     $availableMem = $util::limitMemory();
     $fileSize = $availableMem + 10000;
-    $fp = $util::createFile($fileSize, $binStr);
+    $requiredReps = ceil($fileSize / $binStrLen);
+    $fp = $util::createFile($requiredReps, $tstBinStr);
 
     // Insert into DB from file
     $db = new PDO($dsn);
     $db->exec("ALTER TABLE $tblName ALTER COLUMN $colName SET DATA TYPE BLOB(10M)"); //increase size
     $stmt = $db->prepare("INSERT INTO $tblName (id, $colName) VALUES ($nextID, :$colName)");
-    $stmt->bindValue(":$colName", $fp, PDO::PARAM_LOB);
+    $stmt->bindParam(":$colName", $fp, PDO::PARAM_LOB);
     $stmt->execute();
-    rewind($fp);
+    $stmt = null; 
 
     // Verify value of inserted data
     $stmt = $db->query("SELECT $colName FROM $tblName WHERE id = $nextID");
@@ -47,17 +49,18 @@ try {
     $stmt->fetch(PDO::FETCH_BOUND);
     
     if (get_resource_type($lob) !== 'stream')
-        die("Bound variable is not a stream resource after fetch()");
-    if (empty(stream_get_contents($lob)))
-        die("Output stream has no content");
-        
-    /* 
-    TODO: Placeholder comparison whilst 
-    finding out why LOB extractions are not working.
-    */ 
-    while($tstByte = fread($fp, 1))
-        if($tstByte !== ($actByte = fread($lob, 1)))
-            die("Content of BLOB differ from test data");
+        die("Bound variable is not a stream resource after fetch()\n");
+    
+    // Content should just be test data repeated
+    $fetchedReps = 0;
+    while($tstBinStr === ($fetchedStr = fread($lob, $binStrLen)))
+        $fetchedReps++;
+
+    if($fetchedReps != $requiredReps)
+        die("Content of BLOB differ from test data\n");
+
+    if(!feof($lob))
+        die("File stream EOF not set after all matching data read\n");
 
 } catch (PDOException $e) {
     print $e->getMessage();

@@ -171,13 +171,12 @@ class PDOMimerTestUtil {
     }
 
     /**
-     * Creates a file with as many repetitions of the given
-     * string content as necessary to reach the given file size.
+     * Creates a file with the given amount of repetitions 
+     * of the given string and returns a file pointer.
      */
-    public static function createFile(int $fileSize, string $content) {
+    public static function createFile(int $req_reps, string $content) {
         $fp = tmpfile();
         $strBytes = strlen($content);
-        $req_reps = ceil($fileSize / $strBytes);
         for ($i = 0; $i < $req_reps; $i++)
             fwrite($fp, $content, $strBytes);
         rewind($fp);
