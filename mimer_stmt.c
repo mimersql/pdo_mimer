@@ -615,6 +615,12 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
                 double val = strtod(Z_STRVAL_P(parameter), NULL);
                 return_code = MimerSetDouble(MIMER_STMT, paramno, val);
             }
+            else if(MimerIsBinary(return_code)){
+                char *binstr = Z_STRVAL_P(parameter);
+                size_t strlen = Z_STRLEN_P(parameter);
+                return_code = MimerSetBinary(MIMER_STMT, paramno, binstr, strlen);
+            }
+
             else 
                 return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
             break;
