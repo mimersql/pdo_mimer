@@ -40,7 +40,9 @@ function test($table, $dsn): ?string {
             $pdoType = $col->getPDOType();
             $inVal = $table->getVal($colName, 0);
             $stmt->bindValue(1, $inVal, $pdoType);
-            $stmt->execute();
+            
+            if (!$stmt->execute())
+                return "Column $colName: Could not execute statement: \"$sql_in\"";
 
             // verify
             $stmt = $db->query($sql_out);

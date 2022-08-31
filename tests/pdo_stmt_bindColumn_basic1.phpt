@@ -35,7 +35,10 @@ function test($table, $dsn): ?string {
             $stmt = $db->prepare($sql);
             $pdoType = $col->getPDOType();
             $stmt->bindColumn(1, $res, $pdoType);
-            $stmt->execute();
+            
+            if (!$stmt->execute())
+                return "Column $colName: Could not execute statement: \"$sql\"";
+
             $stmt->fetch(PDO::FETCH_BOUND);
             
             if ($res !== ($exp = $table->getVal($colName, 0)))
