@@ -267,6 +267,10 @@ class PDOMimerTestColumn {
         return $this->type;
     }
 
+    public function getMimerType(): string {
+        return PDOMimerDataTypeMap::getMimerTypeName($this->type);
+    }
+
     public function getPDOType(){
         return PDOMimerDataTypeMap::getPDOParamConst($this->getType());
     }
