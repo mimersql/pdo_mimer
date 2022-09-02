@@ -46,23 +46,22 @@ static ssize_t mimer_lob_write(php_stream *stream, const char *buf, size_t count
 static ssize_t mimer_lob_read(php_stream *stream, char *buf, size_t count) {
     ssize_t rc;
     pdo_mimer_lob_stream_data *stream_data = (pdo_mimer_lob_stream_data*)stream->abstract;
-    switch(stream_data->lob_type){
-        case MIMER_BLOB:
-            if (stream->eof)
-                return 0;
 
-            rc = MimerGetBlobData(&stream_data->lob_handle, buf, count);
-            if (MIMER_SUCCEEDED(rc)) {
-                stream->eof = rc <= count;
-                return stream->eof ? rc : (ssize_t) count;
-            }
-            return -1;
-            
-        case MIMER_CLOB:
-        case MIMER_NCLOB:
-        default:
-            return -1;
-    }
+    if (stream->eof)
+        return 0;
+
+    if(MimerIsBlob(stream_data->lob_type))
+        rc = MimerGetBlobData(&stream_data->lob_handle, buf, count);
+    else if(MimerIsClob(stream_data->lob_type) || MimerIsNclob(stream_data->lob_type))
+        rc = MimerGetNclobData8(&stream_data->lob_handle, buf, count);
+    else         
+        return -1;
+    
+    if (MIMER_SUCCEEDED(rc)) {
+        stream->eof = rc <= count;
+        return stream->eof ? rc : (ssize_t) count;
+    } else 
+        return -1;
 }
 
 /**
