@@ -210,6 +210,15 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
+    else if (MimerIsFloat(column_type)){
+        float data;
+        if (MIMER_SUCCEEDED(return_code = MimerGetFloat(MIMER_STMT, mim_colno, &data))) {
+            ZVAL_DOUBLE(result, data);
+            convert_to_string(result);
+            return 1;
+        }
+    }
+
     else if (MimerIsDouble(column_type)){
         double data;
         if (MIMER_SUCCEEDED(return_code = MimerGetDouble(MIMER_STMT, mim_colno, &data))) {
@@ -453,7 +462,13 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
         case PDO_PARAM_STR:
             if (!MIMER_SUCCEEDED(return_code = MimerParameterType(MIMER_STMT, paramno)))
                 break;
-            if (MimerIsDouble(return_code)){
+            
+            /* Handle types given with PARAM_STR but can't be set with MimerSetString*/
+            if (MimerIsFloat(return_code)){
+                float val = atof(Z_STRVAL_P(parameter));
+                return_code = MimerSetFloat(MIMER_STMT, paramno, val);
+            }
+            else if (MimerIsDouble(return_code)){
                 double val = strtod(Z_STRVAL_P(parameter), NULL);
                 return_code = MimerSetDouble(MIMER_STMT, paramno, val);
             }
@@ -462,7 +477,6 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
                 size_t strlen = Z_STRLEN_P(parameter);
                 return_code = MimerSetBinary(MIMER_STMT, paramno, binstr, strlen);
             }
-
             else 
                 return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
             break;
