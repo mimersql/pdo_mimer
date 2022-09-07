@@ -46,19 +46,24 @@ class PDOMimerDataTypeMap {
  * Format:
  * Enumeration type | Name in Mimer | PDO Parameter type | Compatible PHP types
  * 
- * Remark: When integers get big enough, PHP stores them as doubles. 
+ * Note: When integers get big enough, PHP stores them as doubles. 
  * This is e.g. why BIGINT must have several compatible types.
+ * 
+ * Note: LOBs can be used with both _STR and _LOB constants, depending on
+ * if user wants to deal with them as file pointers or strings. Currently 
+ * they're default mapping is to _STR. Usage of _LOB is done explicitely 
+ * in certain tests.
  */
 PDOMimerDataTypeMap::$map = [
     [PDOMimerDataType::CHAR, "CHAR", PDO::PARAM_STR, ["string"]],
     [PDOMimerDataType::VARCHAR, "VARCHAR", PDO::PARAM_STR, ["string"]], 
-    [PDOMimerDataType::CLOB, "CLOB", PDO::PARAM_LOB, ["string"]],
+    [PDOMimerDataType::CLOB, "CLOB", PDO::PARAM_STR, ["string"]],
     [PDOMimerDataType::NCHAR, "NCHAR", PDO::PARAM_STR, ["string"]],
     [PDOMimerDataType::NVARCHAR, "NVARCHAR", PDO::PARAM_STR, ["string"]],
-    [PDOMimerDataType::NCLOB, "NCLOB", PDO::PARAM_LOB, ["string"]],
+    [PDOMimerDataType::NCLOB, "NCLOB", PDO::PARAM_STR, ["string"]],
     [PDOMimerDataType::BINARY, "BINARY", PDO::PARAM_STR, ["string"]],
     [PDOMimerDataType::VARBINARY, "VARBINARY", PDO::PARAM_STR, ["string"]],
-    [PDOMimerDataType::BLOB, "BLOB", PDO::PARAM_LOB, ["string"]],
+    [PDOMimerDataType::BLOB, "BLOB", PDO::PARAM_STR, ["string"]],
     [PDOMimerDataType::SMALLINT, "SMALLINT", PDO::PARAM_INT, ["integer"]],
     [PDOMimerDataType::INT, "INT", PDO::PARAM_INT, ["integer"]],
     [PDOMimerDataType::BIGINT, "BIGINT", PDO::PARAM_INT, ["integer", "double"]],
