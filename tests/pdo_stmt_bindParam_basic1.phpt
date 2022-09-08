@@ -17,7 +17,7 @@ PDOMimerTestUtil::commonSkipChecks();
 --FILE--
 <?php require_once 'pdo_tests_util.inc';
 $util = new PDOMimerTestUtil("db_allTypes");
-$tables = $util->getTablesExcept(["lob"]);
+$tables = $util->getAllTables();
 $util->testEachTable($tables, 'test');
 
 function test($table, $dsn): ?string {
@@ -69,6 +69,7 @@ Testing table integer... OK
 Testing table floating_point... OK
 Testing table string... OK
 Testing table national_string... OK
+Testing table lob... OK
 Testing table binary... OK
 Testing table datetime... OK
 Testing table boolean... OK

@@ -53,6 +53,10 @@ class PDOMimerTestUtil {
         return $allTables;
     }
 
+    public function getAllTables(): array {
+        return $this->selected->getTables();
+    }
+
     /**
      * Returns the value for a field in the test configuration file.
      * To access nested fields, seperate the keys with a '->'.

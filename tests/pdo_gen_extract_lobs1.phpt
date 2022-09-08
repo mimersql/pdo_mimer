@@ -37,10 +37,10 @@ try {
     
         if($expVal !== $fetchedVal) {
             if($type === "BLOB"){ // for more readable error output
-                $expVal = bin2hex($expval);
+                $expVal = bin2hex($expVal);
                 $fetchedVal = bin2hex($fetchedVal);
             }
-            die("Expected value ($expVal) differ from fetched value ($fetchedVal)\n");
+             die("Expected value ($expVal) differ from fetched value ($fetchedVal)\n");
         }
         print "OK\n";
     }
