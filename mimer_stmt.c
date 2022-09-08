@@ -180,6 +180,14 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         return 0;
     }
 
+    return_code = MimerIsNull(MIMER_STMT, mim_colno);
+    if (return_code > 0)
+        return 1;
+    else if (return_code < 0){
+        pdo_mimer_stmt_error();
+        return 0;
+    }
+
     if (MimerIsInt64(column_type)) {
         int64_t data;
 
