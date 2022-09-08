@@ -68,7 +68,15 @@ static int pdo_mimer_stmt_dtor(pdo_stmt_t *stmt) {
 static int pdo_mimer_stmt_executer(pdo_stmt_t *stmt) {
     if(MimerStatementHasResultSet(MIMER_STMT)) {
         int num_columns;
-        if (MIMER_SUCCEEDED(num_columns = MimerColumnCount(MIMER_STMT)) && MIMER_SUCCEEDED(MimerOpenCursor(MIMER_STMT))) {
+        bool cursor_close_fail = false;
+
+        if (PDO_MIMER_CURSOR_OPEN && !(cursor_close_fail = !MIMER_SUCCEEDED(MimerCloseCursor(MIMER_STMT)))){
+            PDO_MIMER_CURSOR_OPEN = false;
+        }
+
+        if (!cursor_close_fail && MIMER_SUCCEEDED(num_columns = MimerColumnCount(MIMER_STMT)) 
+                                && MIMER_SUCCEEDED(MimerOpenCursor(MIMER_STMT))) {
+            
             PDO_MIMER_CURSOR_OPEN = true;
             php_pdo_stmt_set_column_count(stmt, num_columns);
             return 1;
