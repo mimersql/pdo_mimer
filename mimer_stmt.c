@@ -240,38 +240,54 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     }
 
     else if (MimerIsBlob(column_type)) {
-        php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
+        if (!type || *type == PDO_PARAM_STR){ // type is null on fetch where no PARAM_ type has been given
+            MimerLob lob_handle;
+            size_t lob_len;
+            if (MIMER_SUCCEEDED(return_code = MimerGetLob(MIMER_STMT, mim_colno, &lob_len, &lob_handle))){
+                char *buf = emalloc(lob_len+1);
+                return_code = MimerGetBlobData(&lob_handle, buf, lob_len);
+                buf[lob_len] = '\0';
+                ZVAL_STRING(result, buf);
+                efree(buf);
+            }
+        }
 
-        if (stream) {
-            php_stream_to_zval(stream, result)
-        } else {
-            pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
-                                   "Unable to allocate PHP stream for BLOB");
-            return 0;
+        else {
+            php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_BLOB);
+            if (stream)
+                php_stream_to_zval(stream, result)
+            else {
+                pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
+                                    "Unable to allocate PHP stream");
+            }
         }
     }
 
-    else if (MimerIsClob(column_type)) {
-        php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_CLOB);
-
-        if (stream) {
-            php_stream_to_zval(stream, result)
-        } else {
-            pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
-                                   "Unable to allocate PHP stream for CLOB");
-            return 0;
+    else if (MimerIsClob(column_type) || MimerIsNclob(column_type)) {
+        if (!type || *type == PDO_PARAM_STR){
+            MimerLob lob_handle;
+            size_t lob_len;
+            if (MIMER_SUCCEEDED(return_code = MimerGetLob(MIMER_STMT, mim_colno, &lob_len, &lob_handle))){
+                char *buf = emalloc(lob_len*MIMER_MAX_MB_LEN+1);
+                return_code = MimerGetNclobData8(&lob_handle, buf, lob_len*MIMER_MAX_MB_LEN+1);
+                ZVAL_STRING(result, buf);
+                efree(buf);
+            }
         }
-    }
 
-    else if (MimerIsNclob(column_type)) {
-        php_stream *stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_NCLOB);
+        else {
+            php_stream *stream = NULL;
+            if (MimerIsClob(column_type))
+                stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_CLOB);
+            else 
+                stream = pdo_mimer_create_lob_stream(stmt, mim_colno, MIMER_NCLOB);
 
-        if (stream) {
-            php_stream_to_zval(stream, result)
-        } else {
-            pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
-                                   "Unable to allocate PHP stream for NCLOB");
-            return 0;
+            if (stream)
+                php_stream_to_zval(stream, result)
+            else {
+                pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_UNABLE_PHPSTREAM_ALLOC,
+                                    "Unable to allocate PHP stream");
+            }
         }
     }
 
@@ -463,7 +479,7 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
             if (!MIMER_SUCCEEDED(return_code = MimerParameterType(MIMER_STMT, paramno)))
                 break;
             
-            /* Handle types given with PARAM_STR but can't be set with MimerSetString*/
+            /* Handle types given with PARAM_STR but that can't be set with MimerSetString*/
             if (MimerIsFloat(return_code)){
                 float val = atof(Z_STRVAL_P(parameter));
                 return_code = MimerSetFloat(MIMER_STMT, paramno, val);
@@ -477,6 +493,18 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
                 size_t strlen = Z_STRLEN_P(parameter);
                 return_code = MimerSetBinary(MIMER_STMT, paramno, binstr, strlen);
             }
+            else if(MimerIsBlob(return_code) || MimerIsClob(return_code) || MimerIsNclob(return_code)){
+                size_t strlen = Z_STRLEN_P(parameter);
+                MimerLob lob_handle;
+                MimerReturnCode lobtype = return_code;
+                if (!MIMER_SUCCEEDED(return_code = MimerSetLob(MIMER_STMT, paramno, strlen, &lob_handle)))
+                    break;
+                if (MimerIsBlob(lobtype))
+                    return_code = MimerSetBlobData(&lob_handle, Z_STRVAL_P(parameter), strlen);
+                else 
+                    return_code = MimerSetNclobData8(&lob_handle, Z_STRVAL_P(parameter), strlen);
+            }
+            
             else 
                 return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
             break;
