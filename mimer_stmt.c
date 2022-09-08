@@ -466,7 +466,6 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
     return return_code;
 }
 
-
 /**
  * @brief Set parameter values for the statement to be executed.
  * @param stmt [in] A pointer to the PDOStatement handle object.
@@ -476,75 +475,63 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
  * @return return code from <code>MimerSetX()</code>
  */
 static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *parameter, int16_t paramno, enum pdo_param_type param_type) {
-    MimerReturnCode return_code = MIMER_SUCCESS;
+    MimerReturnCode return_code;
+    MimerReturnCode mim_type;
 
-    switch (PDO_PARAM_TYPE(param_type)) {
-        case PDO_PARAM_NULL:
-            return_code = MimerSetNull(MIMER_STMT, paramno);
-            break;
+    if (!MIMER_SUCCEEDED(return_code = MimerParameterType(MIMER_STMT, paramno)))
+        return return_code;
 
-        case PDO_PARAM_BOOL:
-            return_code = MimerSetBoolean(MIMER_STMT, paramno, Z_TYPE_P(parameter) == IS_TRUE);
-            break;
-
-        case PDO_PARAM_INT:
-            return_code = MimerSetInt64(MIMER_STMT, paramno, Z_LVAL_P(parameter));
-            break;
-
-        case PDO_PARAM_STR:
-            if (!MIMER_SUCCEEDED(return_code = MimerParameterType(MIMER_STMT, paramno)))
-                break;
-            
-            /* Handle types given with PARAM_STR but that can't be set with MimerSetString*/
-            if (MimerIsFloat(return_code)){
-                float val = atof(Z_STRVAL_P(parameter));
-                return_code = MimerSetFloat(MIMER_STMT, paramno, val);
-            }
-            else if (MimerIsDouble(return_code)){
-                double val = strtod(Z_STRVAL_P(parameter), NULL);
-                return_code = MimerSetDouble(MIMER_STMT, paramno, val);
-            }
-            else if(MimerIsBinary(return_code)){
-                char *binstr = Z_STRVAL_P(parameter);
-                size_t strlen = Z_STRLEN_P(parameter);
-                return_code = MimerSetBinary(MIMER_STMT, paramno, binstr, strlen);
-            }
-            else if(MimerIsBlob(return_code) || MimerIsClob(return_code) || MimerIsNclob(return_code)){
-                size_t strlen = Z_STRLEN_P(parameter);
-                MimerLob lob_handle;
-                MimerReturnCode lobtype = return_code;
-                if (!MIMER_SUCCEEDED(return_code = MimerSetLob(MIMER_STMT, paramno, strlen, &lob_handle)))
-                    break;
-                if (MimerIsBlob(lobtype))
-                    return_code = MimerSetBlobData(&lob_handle, Z_STRVAL_P(parameter), strlen);
-                else 
-                    return_code = MimerSetNclobData8(&lob_handle, Z_STRVAL_P(parameter), strlen);
-            }
-            
-            else 
-                return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
-            break;
-
-        case PDO_PARAM_LOB:
-            return_code = pdo_mimer_set_lob_data(stmt, parameter, paramno);
-            break;
-
-        /* unimplemented */
-#       define UNSUPPORTED(pdo_param) \
-        case pdo_param:               \
-            pdo_mimer_custom_error(stmt, SQLSTATE_OPTIONAL_FEATURE_NOT_IMPLEMENTED, \
-                                   return_code = PDO_MIMER_FEATURE_NOT_IMPLEMENTED, \
-                                   #pdo_param " support is not yet implemented");   \
-            break;
-
-        UNSUPPORTED(PDO_PARAM_INPUT_OUTPUT)
-        UNSUPPORTED(PDO_PARAM_STR_NATL)
-        UNSUPPORTED(PDO_PARAM_STR_CHAR)
-        UNSUPPORTED(PDO_PARAM_STMT)
-        default:
-            pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
-                                   "Unexpected parameter type");
+    mim_type = return_code;
+    if (MimerIsInt32(mim_type)) {
+        // TODO: Overflow check
+        convert_to_long(parameter);
+        return_code = MimerSetInt32(MIMER_STMT, paramno, Z_LVAL_P(parameter));   
     }
+    else if (MimerIsInt64(mim_type)) {
+        convert_to_long(parameter);
+        return_code = MimerSetInt64(MIMER_STMT, paramno, Z_LVAL_P(parameter));
+    }
+    else if (MimerIsBoolean(mim_type)) {
+        convert_to_boolean(parameter);
+        return_code = MimerSetBoolean(MIMER_STMT, paramno, Z_TYPE_P(parameter) == IS_TRUE);
+    }
+    else if (MimerIsFloat(mim_type)) {
+        // TODO: Overflow check
+        convert_to_double(parameter);
+        return_code = MimerSetFloat(MIMER_STMT, paramno, (float)Z_DVAL_P(parameter));
+    }
+    else if (MimerIsDouble(mim_type)) {
+        convert_to_double(parameter);
+        return_code = MimerSetDouble(MIMER_STMT, paramno, Z_DVAL_P(parameter));
+    }
+    else if (MimerIsBinary(mim_type)) {
+        convert_to_string(parameter);
+        return_code = MimerSetBinary(MIMER_STMT, paramno, Z_STRVAL_P(parameter), Z_STRLEN_P(parameter));
+    }
+    else if (MimerIsBlob(mim_type) || MimerIsClob(mim_type) || MimerIsNclob(mim_type)) {
+        
+        if (param_type == PDO_PARAM_LOB)
+            return_code = pdo_mimer_set_lob_data(stmt, parameter, paramno);
+
+        else {
+            convert_to_string(parameter);
+            size_t lob_len = Z_STRLEN_P(parameter);
+            MimerLob lob_handle;
+            if (MIMER_SUCCEEDED(return_code = MimerSetLob(MIMER_STMT, paramno, lob_len, &lob_handle))){
+                if (MimerIsBlob(mim_type))
+                    return_code = MimerSetBlobData(&lob_handle, Z_STRVAL_P(parameter), lob_len);
+                else 
+                    return_code = MimerSetNclobData8(&lob_handle, Z_STRVAL_P(parameter), lob_len);
+            }
+        }
+    }
+    else if (MimerIsString(mim_type)){
+        convert_to_string(parameter);
+        return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
+    }
+    else
+        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR, 
+            "Unknown parameter type");
 
     return return_code;
 }
