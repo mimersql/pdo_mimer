@@ -484,29 +484,30 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
     mim_type = return_code;
     if (MimerIsInt32(mim_type)) {
         // TODO: Overflow check
-        convert_to_long(parameter);
-        return_code = MimerSetInt32(MIMER_STMT, paramno, Z_LVAL_P(parameter));   
+        zend_long val = zval_get_long(parameter);
+        return_code = MimerSetInt32(MIMER_STMT, paramno, val);   
     }
     else if (MimerIsInt64(mim_type)) {
-        convert_to_long(parameter);
-        return_code = MimerSetInt64(MIMER_STMT, paramno, Z_LVAL_P(parameter));
+        zend_long val = zval_get_long(parameter);
+        return_code = MimerSetInt64(MIMER_STMT, paramno, val);
     }
     else if (MimerIsBoolean(mim_type)) {
-        convert_to_boolean(parameter);
-        return_code = MimerSetBoolean(MIMER_STMT, paramno, Z_TYPE_P(parameter) == IS_TRUE);
+        bool val = zend_is_true(parameter);
+        return_code = MimerSetBoolean(MIMER_STMT, paramno, val);
     }
     else if (MimerIsFloat(mim_type)) {
         // TODO: Overflow check
-        convert_to_double(parameter);
-        return_code = MimerSetFloat(MIMER_STMT, paramno, (float)Z_DVAL_P(parameter));
+        double val = zval_get_double(parameter);
+        return_code = MimerSetFloat(MIMER_STMT, paramno, (float)val);
     }
     else if (MimerIsDouble(mim_type)) {
-        convert_to_double(parameter);
-        return_code = MimerSetDouble(MIMER_STMT, paramno, Z_DVAL_P(parameter));
+        double val = zval_get_double(parameter);
+        return_code = MimerSetDouble(MIMER_STMT, paramno, val);
     }
     else if (MimerIsBinary(mim_type)) {
-        convert_to_string(parameter);
-        return_code = MimerSetBinary(MIMER_STMT, paramno, Z_STRVAL_P(parameter), Z_STRLEN_P(parameter));
+        zend_string *str = zval_get_string(parameter);
+        return_code = MimerSetBinary(MIMER_STMT, paramno, ZSTR_VAL(str), ZSTR_LEN(str));
+        zend_string_release(str);
     }
     else if (MimerIsBlob(mim_type) || MimerIsClob(mim_type) || MimerIsNclob(mim_type)) {
         
@@ -514,20 +515,22 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
             return_code = pdo_mimer_set_lob_data(stmt, parameter, paramno);
 
         else {
-            convert_to_string(parameter);
-            size_t lob_len = Z_STRLEN_P(parameter);
+            zend_string *str = zval_get_string(parameter);
+            size_t lob_len = ZSTR_LEN(str);
             MimerLob lob_handle;
             if (MIMER_SUCCEEDED(return_code = MimerSetLob(MIMER_STMT, paramno, lob_len, &lob_handle))){
                 if (MimerIsBlob(mim_type))
-                    return_code = MimerSetBlobData(&lob_handle, Z_STRVAL_P(parameter), lob_len);
+                    return_code = MimerSetBlobData(&lob_handle, ZSTR_VAL(str), lob_len);
                 else 
-                    return_code = MimerSetNclobData8(&lob_handle, Z_STRVAL_P(parameter), lob_len);
+                    return_code = MimerSetNclobData8(&lob_handle, ZSTR_VAL(str), lob_len);
             }
+            zend_string_release(str);
         }
     }
     else if (MimerIsString(mim_type)){
-        convert_to_string(parameter);
-        return_code = MimerSetString8(MIMER_STMT, paramno, Z_STRVAL_P(parameter));
+        zend_string *str = zval_get_string(parameter);
+        return_code = MimerSetString8(MIMER_STMT, paramno, ZSTR_VAL(str));
+        zend_string_release(str);
     }
     else
         pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR, 
