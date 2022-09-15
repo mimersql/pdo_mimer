@@ -583,6 +583,13 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
             break;
 
         case PDO_PARAM_EVT_EXEC_PRE:
+            /* cannot set parameters if a cursor is currently open */
+            if (PDO_MIMER_CURSOR_OPEN) {
+                if(!MIMER_SUCCEEDED(MimerCloseCursor(MIMER_STMT)))
+                    return 0;
+                PDO_MIMER_CURSOR_OPEN = false;
+            }
+
             if (Z_ISREF(param->parameter)){ /* bindParam() was used, let's set those params */
                 /* if param is not ref, that means bindValue() was used which should have been set in EVT_ALLOC */
                 return_code = pdo_mimer_stmt_set_params(stmt, Z_REFVAL(param->parameter), paramno, param->param_type);
