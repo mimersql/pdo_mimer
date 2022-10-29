@@ -125,51 +125,6 @@ static int pdo_mimer_stmt_fetch(pdo_stmt_t *stmt, enum pdo_fetch_orientation ori
 }
 
 
-typedef struct mimer_column {
-    const struct mimer_catalog_schema_name {
-        char *catalog;
-        char *schema;
-        char *name;
-    } table;
-
-    const uint ordinal_position;
-
-    const void *_default;
-    const char *data_type;
-
-    const struct mimer_column_length {
-        uint lob;
-        struct mimer_column_character_length {
-            uint max;
-            uint octet;
-        } char_len;
-    } len;
-
-    const struct mimer_column_precision {
-        union mimer_column_numeric_precision {
-            uint precision;
-            uint radix;
-            uint scale;
-        } numeric;
-
-        union mimer_column_datetime_precision {
-            uint precision;
-            struct mimer_column_interval {
-                char *type;
-                char *precision;
-            } interval;
-        } datetime;
-    } precision;
-
-    const struct mimer_catalog_schema_name character_set;
-    const struct mimer_catalog_schema_name collation;
-    const struct mimer_catalog_schema_name domain;
-    const struct mimer_catalog_schema_name user_defines;
-
-    uint card;
-} mimer_column;
-
-
 /**
  * @brief This function will be called by PDO to query information about a particular column.
  * @param stmt [in] A pointer to the PDOStatement handle object.
@@ -179,13 +134,8 @@ typedef struct mimer_column {
  * @remark PDO is zero-indexed for columns, Mimer SQL's C API is one-indexed.
  */
 static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
-    pdo_dbh_t *dbh = stmt->dbh;
     MimerReturnCode return_code;
-    MimerStatement statement = MIMERNULLHANDLE;
     int mimcolno = colno + 1;
-    struct mimer_column_length maxlen = {};
-    struct mimer_column_precision precision = {};
-    char *query;
 
     MimerGetStr(MimerColumnName8, str_buf, return_code, MIMER_STMT, mimcolno);
     if (!MIMER_SUCCEEDED(return_code)) {
@@ -193,18 +143,10 @@ static int pdo_mimer_describe_col(pdo_stmt_t *stmt, int colno) {
         return 0;
     }
 
-    spprintf(&query, 0, "SELECT (LOB_MAXIMUM_LENGTH, CHARACTER_MAXIMUM_LENGTH, "
-                        "CHARACTER_OCTET_LENGTH) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND "
-                        "TABLE_NAME = ? AND COLUMN_NAME = ?");
-
-    if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(MIMER_SESSION, query, MIMER_FORWARD_ONLY, &statement))) {
-
-    }
-
 	stmt->columns[colno] = (struct pdo_column_data) {
             zend_string_init(str_buf, return_code, 0), /* return_code gives str len */
             SIZE_MAX,
-            0 /* TODO */
+            0
     };
 
     return 1;
@@ -248,8 +190,49 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         }
     }
 
-    else if (MimerIsString(column_type)){
-        if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mimcolno, NULL, 0))) {
+    else if (MimerIsDouble(column_type)) {
+        double data;
+        if (MIMER_SUCCEEDED(return_code = MimerGetDouble(MIMER_STMT, mimcolno, &data))) {
+            ZVAL_DOUBLE(result, data);
+            return 1;
+        }
+    }
+
+    else if (MimerIsBinary(column_type)){
+        if (MIMER_SUCCEEDED(return_code = MimerGetBinary(MIMER_STMT, mimcolno, NULL, 0))) {
+            size_t len = return_code + 1;
+            char *data = emalloc(len);
+            data[len-1] = '\0';
+
+            if (MIMER_SUCCEEDED(return_code = MimerGetBinary(MIMER_STMT, mimcolno, data, len)))
+                ZVAL_STRING(result, data);
+
+            efree(data);
+        }
+    }
+
+    if (MimerIsBoolean(column_type)) {
+        if (MIMER_SUCCEEDED(return_code = MimerGetBoolean(MIMER_STMT, mimcolno))) {
+            ZVAL_BOOL(result, return_code);
+            return 1;
+        }
+    }
+
+    else if (MimerIsString(column_type)) {
+        /* Temporary block for special handling of DECIMAL to prevent segfault.
+        Await update to API. */
+        if (MimerIsDecimal(column_type)) {
+            const int max_chars = 100; // max. num. characters of decimal number strings + some margin
+            char dec_str[max_chars];
+            double dec;
+
+            if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mimcolno, dec_str, max_chars))) {
+                dec = atof(dec_str);
+                ZVAL_DOUBLE(result, dec);
+            }
+        }
+
+        else if (MIMER_SUCCEEDED(return_code = MimerGetString8(MIMER_STMT, mimcolno, NULL, 0))) {
             size_t str_len = return_code + 1; // +1 for null-terminator
             char *data = emalloc(str_len);
 
@@ -747,7 +730,7 @@ static inline const char* get_native_type_string(int32_t col_type) {
         case MIMER_NATIVE_BLOB:
         case MIMER_NATIVE_BLOB_LOCATOR:
             return "BLOB";
-            
+
         case MIMER_CHARACTER:
             return "CHAR";
         case MIMER_CHARACTER_VARYING:
@@ -767,7 +750,7 @@ static inline const char* get_native_type_string(int32_t col_type) {
         case MIMER_NATIVE_NCLOB:
         case MIMER_NATIVE_NCLOB_LOCATOR:
             return "NCLOB";
-            
+
         case MIMER_BOOLEAN:
             return "BOOLEAN";
 
@@ -842,21 +825,8 @@ static inline const char* get_native_type_string(int32_t col_type) {
         case MIMER_INTERVAL_YEAR_TO_MONTH:
             return "INTERVAL_YEAR_TO_MONTH";
 
-        case MIMER_UTF8:
-            return "UTF8";
-
-        case MIMER_UUID:
-            return "UUID";
-
-        case MIMER_LIKE_PATTERN:
-            return "LIKE_PATTERN";
-        case MIMER_NUMERIC:
-            return "NUMERIC";
-        case MIMER_RECORD:
-            return "RECORD";
-
         default:
-            return "UNKNOWN";
+            return NULL;
     }
 }
 
@@ -868,6 +838,7 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
     const char *native_type;
     zval flags;
 
+    /* stmt->columns is only allocated when a fetch is performed, but we have access to column info prior to that */
     if (!stmt->columns) {
         if (!MIMER_SUCCEEDED(stmt->column_count = MimerColumnCount(MIMER_STMT))) {
             pdo_mimer_stmt_error();
@@ -875,8 +846,10 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
         }
 
         stmt->columns = ecalloc(stmt->column_count, sizeof(struct pdo_column_data));
-        if (!pdo_mimer_describe_col(stmt, colno))
+        if (!pdo_mimer_describe_col(stmt, colno)) {
+            efree(stmt->columns);
             return FAILURE;
+        }
     }
 
 
@@ -889,7 +862,7 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
     array_init(return_value);
     array_init(&flags);
 
-    /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment */
+    /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment when/if supported by C API*/
     if (col_type == MIMER_UNSIGNED_INTEGER || col_type == MIMER_T_UNSIGNED_INTEGER ||
         col_type == MIMER_T_UNSIGNED_SMALLINT || col_type == MIMER_T_UNSIGNED_BIGINT)
         add_next_index_string(&flags, "unsigned");
@@ -910,20 +883,19 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
         pdo_param_type = PDO_PARAM_STR;
     }
 
-    native_type = get_native_type_string(col_type);
-
     add_assoc_long(return_value, "pdo_type", pdo_param_type);
     add_assoc_string(return_value, "type", php_type);
-    add_assoc_string(return_value, "native_type", native_type);
-    /* TODO: scale, table */
+    if ((native_type = get_native_type_string(col_type)) != NULL)
+        add_assoc_string(return_value, "native_type", native_type);
+    /* TODO: scale, table when/if supported by C API */
 
-    add_assoc_zval(return_value, "flags", &flags);
+    add_assoc_zval(return_value, "flags", &flags); /* MySQL does this, adds flags array to returned "dict" in PHP */
     return SUCCESS;
 }
 
 
 /**
- * @brief The PHP method <code>mimerAddBatch()</code> extending the <code>PDOStatement</code> class to be able to set
+ * @brief The PHP method <code>mimerAddBatch()</code> extends the <code>PDOStatement</code> class to be able to set
  * multiple parameter values on a prepared statement with Mimer SQL.
  * @param return_value [out] true on success, false if failed to add batch statement.
  * @throws PDOException if PDO Statement object, PDO Mimer statement object, or MimerStatement is uninitialized.

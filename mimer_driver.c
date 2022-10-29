@@ -271,7 +271,7 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
     cursor_type = pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY) ==
             PDO_CURSOR_SCROLL ? MIMER_SCROLLABLE : MIMER_FORWARD_ONLY;
 
-    stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL; /* TODO: add named placeholders */
+    stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL;
     struct { bool freeme; zend_string *stmt; } active_query = {};
     switch (pdo_parse_params(stmt, sql, &active_query.stmt)) {
         case -1: // unable to parse
@@ -296,7 +296,7 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
     stmt->methods = &pdo_mimer_stmt_methods;
 
     cleanup:
-    if (active_query.freeme) /* if sql query was parsed, it's up to us to free that it */
+    if (active_query.freeme) /* if sql query was parsed, it's up to us to free it */
         zend_string_release(active_query.stmt);
 
     return MIMER_SUCCEEDED(return_code);
