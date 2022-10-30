@@ -22,12 +22,28 @@ $tblName = "basic";
 try {
     $db = new PDO($dsn);
     $stmt = $db->query("SELECT * FROM $tblName");
-    $stmt->getColumnMeta(0);
-    
+    var_dump($stmt->getColumnMeta(0));
+
 } catch (PDOException $e) {
     print $e->getMessage();
 }
 ?>
 
 --EXPECT--
-SQLSTATE[IM001]: Driver does not support this function: driver doesn't support meta data
+array(7) {
+  ["pdo_type"]=>
+  int(1)
+  ["type"]=>
+  string(7) "integer"
+  ["native_type"]=>
+  string(7) "INTEGER"
+  ["flags"]=>
+  array(0) {
+  }
+  ["name"]=>
+  string(2) "id"
+  ["len"]=>
+  int(-1)
+  ["precision"]=>
+  int(0)
+}
