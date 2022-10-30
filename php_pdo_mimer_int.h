@@ -179,5 +179,5 @@ extern const php_stream_ops pdo_mimer_lob_stream_ops;
 /* Utilities that at some point could/should be provided by API instead */
 #define MimerIsDatetime(n) (abs(n)==MIMER_DATE||abs(n)==MIMER_TIME||abs(n)==MIMER_TIMESTAMP)
 #define MimerIsInterval(n) (abs(n)>=MIMER_INTERVAL_YEAR && abs(n) <= MIMER_INTERVAL_MINUTE_TO_SECOND)
-
+#define MimerIsUnsigned(n) ((abs(n)<=MIMER_UNSIGNED_INTEGER && abs(n)>=MIMER_T_UNSIGNED_SMALLINT)||abs(n)==MIMER_T_UNSIGNED_BIGINT)
 #endif /* PHP_PDO_MIMER_INT_H */

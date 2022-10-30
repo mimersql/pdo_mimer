@@ -776,8 +776,7 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
     array_init(&flags);
 
     /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment when/if supported by C API*/
-    if (col_type == MIMER_UNSIGNED_INTEGER || col_type == MIMER_T_UNSIGNED_INTEGER ||
-        col_type == MIMER_T_UNSIGNED_SMALLINT || col_type == MIMER_T_UNSIGNED_BIGINT)
+    if (MimerIsUnsigned(col_type))
         add_next_index_string(&flags, "unsigned");
     if (MimerIsBlob(col_type) || MimerIsClob(col_type) || MimerIsNclob(col_type))
         add_next_index_string(&flags, "blob");
