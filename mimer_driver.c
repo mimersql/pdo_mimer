@@ -578,7 +578,10 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
 
     /* provide the PDO handler with information about our driver */
     dbh->methods = &mimer_methods; /* an array of methods that PDO can call provided by our driver */
-    dbh->skip_param_evt = 0b1111111 ^ (1 << PDO_PARAM_EVT_EXEC_PRE); /* skip all but exec_pre param events */
+    dbh->skip_param_evt = 1 << PDO_PARAM_EVT_NORMALIZE
+            | 1 << PDO_PARAM_EVT_FREE
+            | 1 << PDO_PARAM_EVT_FETCH_PRE
+            | 1 << PDO_PARAM_EVT_FETCH_POST;
 
 
     cleanup: /* free up options given by user in dsn */

@@ -175,7 +175,9 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
     int32_t column_type;
 
     int16_t mim_colno = colno + 1;
-    if (!MIMER_SUCCEEDED(column_type = MimerColumnType(MIMER_STMT, mim_colno))) {
+
+    column_type = MimerStatementHasResultSet(MIMER_STMT) ? MimerColumnType(MIMER_STMT, mim_colno) : MimerParameterType(MIMER_STMT, mim_colno);
+    if (!MIMER_SUCCEEDED(column_type)) {
         pdo_mimer_stmt_error();
         return 0;
     }
@@ -478,6 +480,12 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
     MimerReturnCode return_code;
     MimerReturnCode mim_type;
 
+    if (!MIMER_SUCCEEDED(return_code = MimerParameterMode(MIMER_STMT, paramno)))
+        return return_code;
+
+    if (return_code == MIMER_PARAM_OUTPUT)
+        return 1;
+
     if (Z_TYPE_P(parameter) == IS_NULL)
         return MimerSetNull(MIMER_STMT, paramno);
 
@@ -584,6 +592,14 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
                 /* if param is ref, that means bindParam() was used, cannot continue until EXEC_PRE */
                 return_code = pdo_mimer_stmt_set_params(stmt, &param->parameter, paramno, param->param_type);
             break;
+    case PDO_PARAM_EVT_EXEC_POST:
+        if (Z_ISREF(param->parameter)) {
+            if (!MIMER_SUCCEEDED(return_code = MimerParameterMode(MIMER_STMT, paramno)))
+                break;
+            if (MimerParamIsOutput(return_code))
+                pdo_mimer_stmt_get_col_data(stmt, paramno-1, Z_REFVAL(param->parameter), &param->param_type);
+        }
+        break;
 
         case PDO_PARAM_EVT_EXEC_PRE:
             /* cannot set parameters if a cursor is currently open */
