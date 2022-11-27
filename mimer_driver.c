@@ -226,11 +226,13 @@ void pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *FILE, const i
         _pdo_mimer_custom_error(error_info, MimerGetSQLState(return_code), stmt ? stmt->error_code : dbh->error_code,
                                 "%s:%d Error occurred while fetching error from %s.",
                                 FILE, LINE, stmt ? "statement" : "session");
-        if(stmt)
+        if (stmt)
             mimer_throw_except(stmt);
         else
             mimer_throw_except(dbh);
     }
+
+    strcpy(stmt ? stmt->error_code : dbh->error_code, error_info->sqlstate);
 }
 
 /**
