@@ -20,8 +20,15 @@ class PDOMimerTestSQLGenerator {
      */
     public static function getPresetDDL(PDOMimerTestPreset $testdb): array {
         $ddl = [];
+
         foreach($testdb->getTables() as $table)
             $ddl[] = self::getTableDDL($table);
+
+        foreach ($testdb->getStoredProcedures() as $procedure) {
+            $ddl[] = $procedure->drop();
+            $ddl[] = $procedure->create();
+        }
+
         return $ddl;
     } 
 
@@ -77,6 +84,10 @@ class PDOMimerTestSQLGenerator {
                 $sql .= " " . self::$formatVal4SQL($col->getType(), $def);
         }
         return $sql;
+    }
+
+    public static function getStoredProcedureDDL(PDOMimerTestStoredProcedure $procedure): string {
+        return "$procedure";
     }
 
     /**

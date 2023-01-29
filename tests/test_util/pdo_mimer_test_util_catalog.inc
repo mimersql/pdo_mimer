@@ -20,6 +20,7 @@ class PDOMimerTestCatalog {
         self::addPreset(self::makeDBPerson());
         self::addPreset(self::makeDBLOBs());
         self::addPreset(self::makeDBBasic());
+        self::addPreset(self::makeDBStoredProcedures());
     }
 
     /**
@@ -254,5 +255,44 @@ class PDOMimerTestCatalog {
         $tstDb->addTable($tbl);
         return $tstDb;
     }
+
+    private static function makeDBStoredProcedures(): PDOMimerTestPreset{
+        $tstDb = new PDOMimerTestPreset("db_stored_procedures");
+
+        $p_root_inout = new PDOMimerTestStoredProcedureParameter(
+            PDOMimerParameterType::INOUT,
+            "p_root",
+            PDOMimerDataType::INT
+        );
+
+        $p_root_in = new PDOMimerTestStoredProcedureParameter(
+            PDOMimerParameterType::IN,
+            "p_root",
+            PDOMimerDataType::INT
+        );
+
+        $p_product = new PDOMimerTestStoredProcedureParameter(
+            PDOMimerParameterType::OUT,
+            "p_product",
+            PDOMimerDataType::INT
+        );
+
+        $leet = new PDOMimerTestStoredProcedureParameter(
+            PDOMimerParameterType::OUT,
+            "leet",
+            PDOMimerDataType::INT
+        );
+
+        $tstDb->addStoredProcedure(new PDOMimerTestStoredProcedure(
+            "SQUARE", [$p_root_inout], "SET $p_root_inout = $p_root_inout * $p_root_inout;"
+        ))->addStoredProcedure(new PDOMimerTestStoredProcedure(
+            "SQUARE", [$p_root_in, $p_product], "SET $p_product = $p_root_in * $p_root_in;"
+        ))->addStoredProcedure(new PDOMimerTestStoredProcedure(
+            "LEET", [$leet], "SET $leet = 1337;"
+        ));
+
+        return $tstDb;
+    }
 }
+
 PDOMimerTestCatalog::init();

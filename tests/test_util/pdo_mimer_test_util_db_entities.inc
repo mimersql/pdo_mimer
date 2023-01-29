@@ -195,6 +195,121 @@ class PDOMimerTestTable {
     }
 }
 
+enum PDOMimerParameterType {
+    case IN;
+    case OUT;
+    case INOUT;
+}
+
+class PDOMimerTestStoredProcedureParameter {
+    private string $name;
+    private PDOMimerParameterType $parameterType;
+    private PDOMimerDataType $dataType;
+
+    public function __construct(PDOMimerParameterType $parameter, string $name, PDOMimerDataType $type) {
+        $this->name = $name;
+        $this->parameterType = $parameter;
+        $this->dataType = $type;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @return PDOMimerParameterType
+     */
+    public function getParameterType(): PDOMimerParameterType
+    {
+        return $this->parameterType;
+    }
+
+    /**
+     * @return PDOMimerDataType
+     */
+    public function getDataType(): PDOMimerDataType
+    {
+        return $this->dataType;
+    }
+
+    public function __toString(): string
+    {
+        return $this->name;
+    }
+
+    public function asParam(): string {
+        return $this->parameterType->name . " $this " . $this->dataType->name;
+    }
+}
+
+class PDOMimerTestStoredProcedure {
+
+    private string $name;
+    /**
+     * @var PDOMimerTestStoredProcedureParameter[]
+     */
+    private array $parameters = [];
+    private string $function;
+    private bool $contains_sql;
+
+    public function __construct(string $name, array $parameters, string $function, bool $contains_sql = false) {
+        $this->name = $name;
+        $this->parameters = $parameters;
+        $this->function = $function;
+        $this->contains_sql = $contains_sql;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * @return array
+     */
+    public function getParameters(): array
+    {
+        return $this->parameters;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFunction(): string
+    {
+        return $this->function;
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getParamCreation(): array {
+        return array_map(function(PDOMimerTestStoredProcedureParameter $param): string {
+            return $param->asParam();
+        }, $this->parameters);
+    }
+
+    public function create(): string {
+        return "CREATE PROCEDURE $this->name (" . implode(", ", $this->getParamCreation())
+            . ") " . ($this->contains_sql ? "CONTAINS SQL ": '') . "BEGIN $this->function END;";
+    }
+
+    public function drop(): string {
+        $params = array_map(function (PDOMimerTestStoredProcedureParameter $param): string {
+            return $param->getDataType()->name;
+        }, $this->parameters);
+
+        return "DROP PROCEDURE $this->name(" . implode(', ', $params) . ");";
+    }
+}
+
 /**
  * Represents a column in a database table.
  */

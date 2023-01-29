@@ -12,15 +12,13 @@ PDOMimerTestUtil::commonSkipChecks();
 
 --FILE--
 <?php require_once 'pdo_tests_util.inc';
-$util = new PDOMimerTestUtil("db_basic");
+$util = new PDOMimerTestUtil("db_stored_procedures");
 $dsn = $util->getFullDSN();
 
-$procedure_create = "CREATE PROCEDURE LEET(OUT leet INT) BEGIN SET leet = 1337; END";
 $procedure_call = "CALL LEET(?);";
 
 try {
     $db = new PDO($dsn);
-    $db->exec($procedure_create);
 
     $stmt = $db->prepare($procedure_call);
     $stmt->bindParam(1, $leet, PDO::PARAM_INT|PDO::PARAM_INPUT_OUTPUT);
