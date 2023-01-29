@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(prepare): return false on invalid SQL
+PDO Mimer(prepare): throw exception on invalid SQL
 
 --EXTENSIONS--
 pdo
@@ -19,12 +19,11 @@ $tblName = "basic";
 try {
     $db = new PDO($dsn);
     $stmt = $db->prepare("Invalid SQL");
-    if ($stmt !== false)
-        die("Prepare did not return false");
-
+    //unreachable
 } catch (PDOException $e) {
-    print $e->getMessage();
+    die($e->getMessage());
 }
 ?>
 
 --EXPECT--
+SQLSTATE[HY000]: General error: -12103 Syntax error, IDENTIFIER 'SQL'  assumed to mean 'COMMIT'

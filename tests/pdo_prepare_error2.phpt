@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(prepare): false when using placeholder for column or table name
+PDO Mimer(prepare): throw exception when using placeholder for column or table name
 
 --EXTENSIONS--
 pdo
@@ -27,8 +27,9 @@ try {
         die("Prepare did not return false for table name");
 
 } catch (PDOException $e) {
-    print $e->getMessage();
+    die($e->getMessage());
 }
 ?>
 
 --EXPECT--
+SQLSTATE[HY000]: General error: -12262 The type of the parameter marker cannot be determined
