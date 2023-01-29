@@ -224,7 +224,7 @@ void pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *FILE, const i
         /* unable to get error info for some reason. throw an exception */
         error_info->code = return_code;
         _pdo_mimer_custom_error(error_info, MimerGetSQLState(return_code), stmt ? stmt->error_code : dbh->error_code,
-                                "%s:%d Error occurred while fetching error from %s.",
+                                "%s:%d Error occurred while fetching error information from %s.",
                                 FILE, LINE, stmt ? "statement" : "session");
         if (stmt)
             mimer_throw_except(stmt);
@@ -289,7 +289,12 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
     }
 
     if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(MIMER_SESSION, ZSTR_VAL(active_query.stmt), cursor_type, &mimer_stmt))) {
-        pdo_mimer_dbh_error();
+//        if (mimer_stmt != NULL) {
+//            stmt->driver_data = NEW_PDO_MIMER_STMT(mimer_stmt, cursor_type);
+//            pdo_mimer_stmt_error();
+//        } else {
+            pdo_mimer_dbh_error();
+//        }
         goto cleanup;
     }
 
