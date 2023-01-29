@@ -43,6 +43,13 @@ try {
 ?>
 
 --EXPECT--
+Could not set attribute PDO::ATTR_TIMEOUT
+PDO::ATTR_CASE did not register new value
+PDO::ATTR_ERRMODE did not register new value
+PDO::ATTR_ORACLE_NULLS did not register new value
 
---XFAIL--
-Must discuss which attributes we can support setting, see issue #66. 
+Warning: PDO::getAttribute(): SQLSTATE[IM001]: Driver does not support this function: driver does not support that attribute in /home/alexanderh/Workspace/Mimer/pdo_mimer/tests/pdo_setAttribute_basic1.php on line 23
+
+Warning: PDO::getAttribute(): SQLSTATE[IM001]: Driver does not support this function: driver does not support that attribute in /home/alexanderh/Workspace/Mimer/pdo_mimer/tests/pdo_setAttribute_basic1.php on line 23
+PDO::ATTR_TIMEOUT did not register new value
+PDO::ATTR_DEFAULT_FETCH_MODE did not register new value

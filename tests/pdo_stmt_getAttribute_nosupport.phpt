@@ -47,4 +47,4 @@ try{
 ?>
 
 --EXPECTREGEX--
-(SQLSTATE\[IM001\]: Driver does not support this function: driver doesn't support getting that attribute\n*){22}
+(SQLSTATE\[IM001\]: Driver does not support this function: This driver doesn't support getting attributes\n*){22}

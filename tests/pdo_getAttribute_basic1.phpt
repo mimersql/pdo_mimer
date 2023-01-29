@@ -26,17 +26,19 @@ try {
     $db = new PDO($dsn);
 
     foreach ($attributes as $val) {
-        if($db->getAttribute(constant("PDO::ATTR_$val")) === null)
-            print("Could not get attribute PDO::ATTR_$val" . "\n");
+
+        try {
+            if($db->getAttribute(constant("PDO::ATTR_$val")) === null)
+                print("Could not get attribute PDO::ATTR_$val" . "\n");
+        } catch (PDOException $e) {
+            print $e->getMessage() . "\n";
+        }
     }
 
 } catch (PDOException $e) {
-    print $e->getMessage();
+    die($e->getMessage());
 }
 ?>
 
---EXPECT--
-
---XFAIL-- 
-This test is WIP pending discussion on exception vs. null-returning 
-behaviour. See issue #65. 
+--EXPECTREGEX--
+(SQLSTATE\[IM001\]: Driver does not support this function: driver does not support that attribute\n*){5}

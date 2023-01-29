@@ -47,7 +47,4 @@ try{
 ?>
 
 --EXPECTREGEX--
-(SQLSTATE\[IM001\]: Driver does not support this function: driver doesn't support setting that attribute\n*){22}
-
---XFAIL-- 
-Function behaviour is TBD. See issue #78.
+(SQLSTATE\[IM001\]: Driver does not support this function: This driver doesn't support setting attributes\n*){23}
