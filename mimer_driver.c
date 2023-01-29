@@ -265,7 +265,7 @@ static void mimer_handle_closer(pdo_dbh_t *dbh) {
  */
 static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *stmt, zval *driver_options) {
     MimerReturnCode return_code;
-    MimerStatement mimer_stmt;
+    MimerStatement mimer_stmt = NULL;
     int32_t cursor_type;
 
     /* if no option given, assign PDO_CURSOR_FWDONLY as default */
