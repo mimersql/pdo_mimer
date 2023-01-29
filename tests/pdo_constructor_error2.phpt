@@ -23,7 +23,5 @@ try {
 }
 ?>
 
---EXPECT--
-
---XFAIL-- 
-Expected error message is TBD. See issue #76.
+--EXPECTF--
+SQLSTATE[%c%c%c%c%c] [90] Login failure

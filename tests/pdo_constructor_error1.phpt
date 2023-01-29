@@ -20,6 +20,4 @@ try {
 ?>
 
 --EXPECTF--
-
---XFAIL--
-Expected error message is TBD. See issue #75. 
+SQLSTATE[%c%c%d] [%i] Database <%s> not found in SQLHOSTS file
