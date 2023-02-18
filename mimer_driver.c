@@ -319,7 +319,47 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
 	return SUCCESS;
 }
 
-    return num_affected_rows;
+
+/**
+ * @brief Set quotes around identifiers where needed
+ * @param dbh [in] A pointer to the PDO database handle object.
+ * @param unquoted A string of the SQL statement before being quoted
+ * @param param_type [in] The parameter's data type.
+ * @return The quoted SQL statement
+ * @todo Add LOB support
+ */
+static zend_string* mimer_handle_quoter(pdo_dbh_t *dbh, const zend_string *unquoted, enum pdo_param_type param_type) {
+	if (param_type == PDO_PARAM_LOB)
+		return NULL;
+
+	size_t quoted_len, unquoted_len;
+	quoted_len = unquoted_len = ZSTR_LEN(unquoted);
+	const char escape = '\'';
+	zend_string* quoted;
+	char* quoted_str;
+
+	const char* unquoted_str = ZSTR_VAL(unquoted);
+	for (int i = 0; i < unquoted_len; i++) { // count number of double quotation marks that need escaping
+		if (unquoted_str[i] == escape)
+			quoted_len++;
+	}
+
+	quoted_len += 2; // leave room for escaping char in front and back
+	quoted_str = ecalloc(quoted_len, sizeof(char));
+
+	// prepend and append double quotation marks and null-terminate the string
+	quoted_str[0] = '\'';
+	quoted_str[quoted_len - 1] = '\'';
+
+	for (int i = 0, j = 1; i < unquoted_len; i++, j++) { // add escaping char to each double quotation mark
+		if (unquoted_str[i] == escape) // escape double quotation mark by using another quotation mark and increment j
+			quoted_str[j++] = escape;
+		quoted_str[j] = unquoted_str[i];
+	}
+
+	quoted = zend_string_init(quoted_str, quoted_len, false);
+	efree(quoted_str);
+	return quoted;
 }
 
 
@@ -508,7 +548,7 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
         mimer_handle_closer,   /* handle closer method */
         mimer_handle_preparer,   /* handle preparer method */
         mimer_handle_doer,   /* handle doer method */
-        NULL,   /* handle quoter method */
+        mimer_handle_quoter,   /* handle quoter method */
         mimer_handle_begin,   /* handle begin method */
         mimer_handle_commit,   /* handle commit method */
         mimer_handle_rollback,   /* handle rollback method */
