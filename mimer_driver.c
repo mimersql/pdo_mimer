@@ -48,20 +48,20 @@ static ssize_t mimer_lob_read(php_stream *stream, char *buf, size_t count) {
     pdo_mimer_lob_stream_data *stream_data = (pdo_mimer_lob_stream_data*)stream->abstract;
 
     if (stream->eof)
-        return 0;
+        return SUCCESS;
 
     if(MimerIsBlob(stream_data->lob_type))
         rc = MimerGetBlobData(&stream_data->lob_handle, buf, count);
     else if(MimerIsClob(stream_data->lob_type) || MimerIsNclob(stream_data->lob_type))
         rc = MimerGetNclobData8(&stream_data->lob_handle, buf, count);
     else         
-        return -1;
+        return FAILURE;
     
     if (MIMER_SUCCEEDED(rc)) {
         stream->eof = rc <= count;
         return stream->eof ? rc : (ssize_t) count;
     } else 
-        return -1;
+        return FAILURE;
 }
 
 /**
@@ -75,7 +75,7 @@ static int mimer_lob_close(php_stream *stream, int close_handle) {
     if (close_handle){
         efree(self);
     }
-	return 0;
+	return SUCCESS;
 }
 
 /**
@@ -87,7 +87,7 @@ static int mimer_lob_close(php_stream *stream, int close_handle) {
  */
 static int mimer_lob_flush(php_stream *stream)
 {
-	return 0;
+	return SUCCESS;
 }
 
 /**
@@ -265,47 +265,40 @@ static void mimer_handle_closer(pdo_dbh_t *dbh) {
  */
 static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *stmt, zval *driver_options) {
     MimerReturnCode return_code;
-    MimerStatement mimer_stmt = NULL;
+    MimerStatement mimer_stmt;
+	int params_parsed;
     int32_t cursor_type;
+	zend_string *new_sql;
 
     /* if no option given, assign PDO_CURSOR_FWDONLY as default */
     cursor_type = pdo_attr_lval(driver_options, PDO_ATTR_CURSOR, PDO_CURSOR_FWDONLY) ==
             PDO_CURSOR_SCROLL ? MIMER_SCROLLABLE : MIMER_FORWARD_ONLY;
 
-    stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL;
-    struct { bool freeme; zend_string *stmt; } active_query = {};
-    switch (pdo_parse_params(stmt, sql, &active_query.stmt)) {
-        case -1: // unable to parse
-            strcpy(dbh->error_code, stmt->error_code);
-            goto cleanup;
+	stmt->supports_placeholders = PDO_PLACEHOLDER_POSITIONAL;
 
-        case 0: /* no parsing needed */
-            active_query.stmt = sql;
-            break;
-
-        default: /* parsing needed, newly parsed sql statement now in active_query.stmt */
-            active_query.freeme = 1;
-            break;
+	bool free_me = false;
+    if ((params_parsed = pdo_parse_params(stmt, sql, &new_sql)) == FAILURE) { /* unable to parse */
+		strcpy(dbh->error_code, stmt->error_code);
+		goto cleanup;
+	} else if (params_parsed == SUCCESS) { /* no parsing needed */
+		new_sql = sql;
+	} else { /* parsing needed, newly parsed sql statement now in active_query.stmt */
+		free_me = true;
     }
 
-    if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(MIMER_SESSION, ZSTR_VAL(active_query.stmt), cursor_type, &mimer_stmt))) {
-//        if (mimer_stmt != NULL) {
-//            stmt->driver_data = NEW_PDO_MIMER_STMT(mimer_stmt, cursor_type);
-//            pdo_mimer_stmt_error();
-//        } else {
-            pdo_mimer_dbh_error();
-//        }
-        goto cleanup;
+    if (!MIMER_SUCCEEDED(return_code = MimerBeginStatement8(MIMER_SESSION, ZSTR_VAL(new_sql), cursor_type, &mimer_stmt))) {
+		pdo_mimer_dbh_error();
+		goto cleanup;
     }
 
-    stmt->driver_data = NEW_PDO_MIMER_STMT(mimer_stmt, cursor_type); /* allocate memory for new handle */
+    stmt->driver_data = NEW_PDO_MIMER_STMT(mimer_stmt, cursor_type);
     stmt->methods = &pdo_mimer_stmt_methods;
 
     cleanup:
-    if (active_query.freeme) /* if sql query was parsed, it's up to us to free it */
-        zend_string_release(active_query.stmt);
+    if (free_me) /* if sql query was parsed, it's up to us to free it */
+        zend_string_release(new_sql);
 
-    return MIMER_SUCCEEDED(return_code);
+    return MIMER_SUCCEEDED(return_code) || return_code == MIMER_STATEMENT_CANNOT_BE_PREPARED;
 }
 
 
@@ -318,17 +311,13 @@ static bool mimer_handle_preparer(pdo_dbh_t *dbh, zend_string *sql, pdo_stmt_t *
  * returning number of affected rows (yet?).
  */
 static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
-    MimerReturnCode return_code;
-    int num_affected_rows;
-
-    if (!MIMER_SUCCEEDED(return_code = MimerExecuteStatement8(MIMER_SESSION, ZSTR_VAL(sql)))) {
+    if (!MIMER_SUCCEEDED(MimerExecuteStatement8(MIMER_SESSION, ZSTR_VAL(sql)))) {
         pdo_mimer_dbh_error();
-        return -1;
-    } else {
-        /* doesn't actually return num affected rows.
-         * this is just for possible future support, otherwise it will just return 0. */
-        num_affected_rows = return_code;
+        return FAILURE;
     }
+
+	return SUCCESS;
+}
 
     return num_affected_rows;
 }
@@ -395,9 +384,6 @@ static bool mimer_handle_rollback(pdo_dbh_t *dbh) {
  */
 static bool pdo_mimer_set_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *value) {
     switch (attribute) {
-        /* TODO: add necessary attributes */
-        /* TODO: add charset attribute support */
-
         /* custom driver attributes */
         case MIMER_ATTR_TRANS_OPTION: {
             long trans_readonly;
@@ -462,8 +448,6 @@ static zend_result pdo_mimer_check_liveness(pdo_dbh_t *dbh) {
  */
 static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *return_value) {
     switch (attribute) {
-        /* TODO: add autocommit functionality and/or more */
-
         case PDO_ATTR_CLIENT_VERSION:
             ZVAL_STRING(return_value, MimerAPIVersion());
             break;
@@ -489,8 +473,6 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
             ZVAL_STRING(return_value, PDO_MIMER_TRANS_READONLY ? "Read-only" : "Read and write");
             break;
 
-        /* TODO: find more attributes for Mimer */
-
         default:
             return 0;
     }
@@ -505,7 +487,7 @@ static int pdo_mimer_get_attribute(pdo_dbh_t *dbh, zend_long attribute, zval *re
  * @param kind [in] The enum value to determine which set of methods should be used to extend PDO or PDOStatement.
  * @return An array of methods or NULL if no methods available.
  */
-static inline const zend_function_entry *pdo_mimer_get_driver_methods(pdo_dbh_t *dbh, int kind) {
+static const zend_function_entry *pdo_mimer_get_driver_methods(pdo_dbh_t *dbh, int kind) {
     return kind == PDO_DBH_DRIVER_METHOD_KIND_STMT ? class_PDOStatement_MimerSQL_Ext_methods : NULL;
 }
 
@@ -516,7 +498,7 @@ static inline const zend_function_entry *pdo_mimer_get_driver_methods(pdo_dbh_t 
  * @return true if a transaction has been started on this session
  * @false if no transaction has been started
  */
-static inline bool pdo_mimer_in_transaction(pdo_dbh_t *dbh) {
+static bool pdo_mimer_in_transaction(pdo_dbh_t *dbh) {
     return PDO_MIMER_IN_TRANSACTION;
 }
 
@@ -552,10 +534,6 @@ static const struct pdo_dbh_methods mimer_methods = { /* {{{ */
  */
 static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     /* Leave this guard here until we're ready to test persistent connections */
-    if(dbh->is_persistent){
-        strcpy(dbh->error_code, SQLSTATE_FEATURE_NOT_SUPPORTED);
-        pdo_throw_exception(PDO_MIMER_FEATURE_NOT_IMPLEMENTED, "Persistent connections not yet supported", &dbh->error_code);
-    }
 
     
     enum { dbname, user, password, num_opts }; /* for ease of use when accessing opts */
@@ -584,6 +562,8 @@ static int pdo_mimer_handle_factory(pdo_dbh_t *dbh, zval *driver_options) {
     }
 
     /* provide the PDO handler with information about our driver */
+	dbh->alloc_own_columns = true;
+	dbh->max_escaped_char_length = 2;
     dbh->methods = &mimer_methods; /* an array of methods that PDO can call provided by our driver */
     dbh->skip_param_evt = 1 << PDO_PARAM_EVT_NORMALIZE
             | 1 << PDO_PARAM_EVT_FREE
