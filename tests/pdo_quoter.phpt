@@ -1,5 +1,5 @@
 --TEST--
-PDO Mimer(quote): not supported 
+PDO Mimer(quote): quote a statement
 
 --EXTENSIONS--
 pdo
@@ -20,8 +20,8 @@ $dsn = $util->getFullDSN();
 
 try {
     $db = new PDO($dsn);
-    $str = 'Test \' string';
-    $res = $db->quote($str);
+    $str = "Test ' string";
+    print $db->quote($str);
 
 } catch (PDOException $e) {
     print $e->getMessage();
@@ -29,4 +29,4 @@ try {
 ?>
 
 --EXPECT--
-SQLSTATE[IM001]: Driver does not support this function: driver does not support quoting
+'Test '' string'

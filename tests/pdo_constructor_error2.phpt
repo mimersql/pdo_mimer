@@ -24,4 +24,4 @@ try {
 ?>
 
 --EXPECT--
-SQLSTATE[HY000] [90] Login failure
+SQLSTATE[08006] [90] Login failure
