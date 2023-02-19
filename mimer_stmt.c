@@ -340,7 +340,7 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
             char *data = emalloc(str_len);
 
             if (MIMER_SUCCEEDED(return_code = MimerGetString8(mimer_stmt->stmt, mim_colno, data, str_len))) {
-				ZVAL_STRINGL(result, data, str_len);
+				ZVAL_STRINGL(result, data, str_len-1);
 			}
 
             efree(data);
