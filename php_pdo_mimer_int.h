@@ -10,8 +10,7 @@
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Authors: Alexander Hedberg <alexander.hedberg@mimer.com>             |
-   |          Ludwig von Feilitzen <ludwig.vonfeilitzen@mimer.com>        |
+   | Author: Alexander Hedberg <alexander.hedberg@mimer.com>              |
    +----------------------------------------------------------------------+
 */
 
@@ -23,10 +22,7 @@
 #include "pdo_mimer_error.h"
 
 
-/* a struct containing data about our driver and is used to register/unregister the driver */
 extern const pdo_driver_t pdo_mimer_driver;
-
-/* our statement driver's methods to interface with PDOStatement */
 extern const struct pdo_stmt_methods pdo_mimer_stmt_methods;
 
 
@@ -37,105 +33,30 @@ extern const struct pdo_stmt_methods pdo_mimer_stmt_methods;
 /* Mimer SQL C API uses int32_t as return codes and returned data, this typedef exists to simply increase readability */
 typedef int32_t MimerReturnCode;
 
-/**
- * This struct exists to simplify the retrieving of data owned by the session or statement handle. This was previously
- * two separate structs but since they share many of the same attributes, it was much simpler to create a single
- * "wrapper" to hold the necessary data.
- */
-typedef struct pdo_mimer_handle {
-    /* either session or statement attributes */
-    union {
-        /* session (db) attributes */
-        struct {
-            bool started;
-            bool read_only;
-        } transaction;
+typedef struct {
+	struct {
+		bool is_in_transaction:1;
+		bool is_read_only:1;
+	} transaction;
 
-        struct { /* statement attributes */
-            bool open;
-            bool scrollable;
-        } cursor;
-    };
+	struct {
+		MimerErrorCode code;
+		char *msg;
+		char sqlstate[6];
+	} error;
 
-    /* These structs are typedef'd to be pointers, and can be swapped for MimerHandle in certain situations */
-    union {
-        MimerHandle handle;
-        MimerSession session;
-        MimerStatement statement;
-    };
+	MimerSession session;
+} pdo_mimer_dbh;
 
-    /* last error code and message */
-    MimerErrorInfo error_info;
-} pdo_mimer_handle;
+typedef struct pdo_mimer_stmt_t {
+	struct {
+		bool is_open:1;
+		bool is_scrollable:1;
+	} cursor;
 
-
-/*********************************************
- * Accessor macros for PDO Mimer driver data *
- *********************************************/
-
-/* helper macro to simplify retrieving our driver data and our generic database/statement handle */
-#define PDO_MIMER_HANDLE(pdo_handle) ((pdo_mimer_handle*)(pdo_handle)->driver_data)
-#define MIMER_HANDLE(pdo_handle) PDO_MIMER_HANDLE(pdo_handle)->handle
-
-/* macros to retrieve our session handle and its attributes in a scope where the PDO "dbh" is accessible */
-#define PDO_MIMER_DBH PDO_MIMER_HANDLE(dbh)
-#define PDO_MIMER_DBH_ERROR (&PDO_MIMER_DBH->error_info)
-#define PDO_MIMER_TRANS_READONLY PDO_MIMER_DBH->transaction.read_only
-#define PDO_MIMER_TRANS_TYPE (PDO_MIMER_TRANS_READONLY ? MIMER_TRANS_READONLY : MIMER_TRANS_READWRITE)
-#define PDO_MIMER_IN_TRANSACTION PDO_MIMER_DBH->transaction.started
-#define MIMER_SESSION PDO_MIMER_DBH->session
-
-/**
- * @brief Allocate our driver's database handle
- * @param persistent [in] If the memory to be allocated should be persistent (usually <code>dbh->is_persistent</code>
- * @return A pointer to the driver's newly allocated database handle
- */
-#define NEW_PDO_MIMER_DBH(persistent) \
-    pecalloc(1, sizeof(pdo_mimer_handle), persistent)
-
-/* macros to retrieve our statement handle and its attributes in a scope where the PDOStatement "stmt" is accessible */
-#define PDO_MIMER_STMT PDO_MIMER_HANDLE(stmt)
-#define PDO_MIMER_STMT_ERROR (&PDO_MIMER_STMT->error_info)
-#define PDO_MIMER_CURSOR_OPEN PDO_MIMER_STMT->cursor.open
-#define PDO_MIMER_SCROLLABLE PDO_MIMER_STMT->cursor.scrollable
-#define PDO_MIMER_CURSOR_TYPE (PDO_MIMER_STMT->cursor.scrollable ? MIMER_SCROLLABLE : MIMER_FORWARD_ONLY)
-#define MIMER_STMT PDO_MIMER_STMT->statement
-
-/**
- * @brief Allocate our driver's statement handle
- * @param mimer_stmt [in] The <code>MimerStatement</code> used on a successful <code>MimerBeginStatement[C|8]()</code>
- * @param cursor_scrollable [in] True or false if the created @p mimer_stmt was created with a scrollable cursor or not
- * @return A pointer to the driver's newly allocated statement handle
- */
-#define NEW_PDO_MIMER_STMT(mimer_stmt, cursor_scrollable)                 \
-    ecalloc(1, sizeof(pdo_mimer_handle));                                 \
-    do {                                                                  \
-        MIMER_STMT = mimer_stmt;                                          \
-        PDO_MIMER_SCROLLABLE = ((cursor_scrollable) == MIMER_SCROLLABLE); \
-    } while(0)
-
-/**
- * @brief Macro function to get a string value since Mimer SQL's C API functions behave similarly
- * @param mimer_func The Mimer API function to call, eg. <code>MimerGetString()</code>
- * @param str The name of the resulting <code>char[]</code> variable
- * @param rc A <code>MimerError</code> variable to store any possible errors
- * @param args Any additional arguments that need to be sent to @p mimer_func
- *
- * @example From <code>mimer_stmt::pdo_mimer_describe_col()</code>:<br><br>
- * @code
- *  int mim_colno = colno + 1;
- *  MimerError return_code;
- *  MimerGetStr(MimerColumnName8, str_buf, return_code, stmt_handle->statement, mim_colno);
- * @endcode
- *
- * @remark <code>char @p str[]</code> is allocated on the stack
- */
-#define MimerGetStr(mimer_func, str, rc, ...)        \
-    rc = (mimer_func)(__VA_ARGS__, NULL, 0);         \
-    char str[(rc) > 0 ? (rc) + 1 : 0];               \
-    do { if ((rc) > 0) {                             \
-        rc = (mimer_func)(__VA_ARGS__, str, rc + 1); \
-    }} while (0)
+	pdo_mimer_dbh *dbh;
+	MimerStatement stmt;
+} pdo_mimer_stmt;
 
 /**
  * @brief Checks if the statement will yield a result-set

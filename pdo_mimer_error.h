@@ -10,8 +10,7 @@
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
    +----------------------------------------------------------------------+
-   | Authors: Alexander Hedberg <alexander.hedberg@mimer.com>             |
-   |          Ludwig von Feilitzen <ludwig.vonfeilitzen@mimer.com>        |
+   | Author: Alexander Hedberg <alexander.hedberg@mimer.com>              |
    +----------------------------------------------------------------------+
 */
 
@@ -23,57 +22,14 @@
 
 /* Mimer SQL C API uses int32_t as return codes, this typedef exists solely to specify an error code is expected */
 typedef int32_t MimerErrorCode;
-typedef char SQLState[6];
-
-typedef struct MimerError {
-    /* if the string should be persistently allocated. only needed with PDO dbh->is_persistent  */
-    int persistent;
-    /* the error code gotten from MimerGetError[C|8] */
-    MimerErrorCode code;
-    /* the error message gotten from MimerGetError[C|8] */
-    char *msg;
-    SQLState sqlstate;
-} MimerErrorInfo;
-
 
 /********************************************
  *         PDO Mimer error functions        *
  ********************************************/
 
-/* the functions to call upon any error */
-extern void pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char * FILE, int LINE);
-/* the following pdo_mimer_xxx_error() functions call pdo_mimer_error() with the PDO handle, filename and line number
- * the error function was called from, specifying an error happened a line or two before. */
+extern void pdo_mimer_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt, const char *FILE, int LINE);
 #define pdo_mimer_dbh_error() pdo_mimer_error(dbh, NULL, __FILE__, __LINE__)
 #define pdo_mimer_stmt_error() pdo_mimer_error(stmt->dbh, stmt, __FILE__, __LINE__)
-
-/* functions to create custom error codes and messages */
-extern void _pdo_mimer_custom_error(MimerErrorInfo*, const char[6], pdo_error_type, const char*, ...);
-/**
- * @brief Create a custom error message and code with a related SQLState code
- * @param pdo_handle [in] The PDO handle that had an error
- * @param sqlstate [in] The SQLState code related to the error
- * @param errcode [in] The PDO Mimer error code
- * @param format [in] The error message to format
- * @param ... [in] The variables to format the error message with
- */
-#define pdo_mimer_custom_error(pdo_handle, sqlstate, errcode, format, ...)           \
-    do {                                                                             \
-        ((pdo_mimer_handle*)((pdo_handle)->driver_data))->error_info.code = errcode; \
-        _pdo_mimer_custom_error(                                                     \
-            &((pdo_mimer_handle*)((pdo_handle)->driver_data))->error_info,           \
-            sqlstate, (pdo_handle)->error_code, format __VA_OPT__(,) __VA_ARGS__);   \
-    } while(0)
-
-/**
- * @brief Throw a PDO exception with information from the latest PDO Mimer error
- * @param pdo_handle [in] The PDO handle to throw an exception from
- */
-#define mimer_throw_except(pdo_handle) do {                                              \
-    strcpy((pdo_handle)->error_code, PDO_MIMER_HANDLE(pdo_handle)->error_info.sqlstate); \
-    pdo_throw_exception(PDO_MIMER_HANDLE(pdo_handle)->error_info.code,                   \
-        PDO_MIMER_HANDLE(pdo_handle)->error_info.msg, &(pdo_handle)->error_code);        \
-    } while(0)
 
 
 /********************************************
@@ -224,6 +180,7 @@ extern void _pdo_mimer_custom_error(MimerErrorInfo*, const char[6], pdo_error_ty
  *         PDO Mimer return codes           *
  ********************************************/
 
+#define PDO_MIMER_LOGIN_ERROR			  (90)
 #define PDO_MIMER_GENERAL_ERROR           (-100000)
 #define PDO_MIMER_FEATURE_NOT_IMPLEMENTED (-100001)
 #define PDO_MIMER_VALUE_TOO_LARGE         (-100002)
