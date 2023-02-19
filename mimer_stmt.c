@@ -109,8 +109,8 @@ const int mimer_fetch_op_lut[] = {
  * @param ori [in] One of PDO_FETCH_ORI_xxx which will determine which row will be fetched.
  * @param offset [in] If @p ori is set to PDO_FETCH_ORI_ABS or PDO_FETCH_ORI_REL, offset represents the row desired or the row
  *      relative to the current position, respectively. Otherwise, this value is ignored.
- * @return 1 upon success
- * @return 0 upon failure
+ * @return 1 if data can be fetched
+ * @return 0 upon failure or no more data to fetch
  * @remark The results of this fetch are driver dependent and the data is usually stored in the driver_data member of
  * the pdo_stmt_t object. The ori and offset parameters are only meaningful if the statement represents a scrollable
  * cursor.
