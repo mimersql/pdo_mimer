@@ -33,7 +33,7 @@ is_help() {
 }
 
 clean_tests_dir() {
-  local CLEAN_FILES=('diff' 'log' 'out' 'exp' 'php' 'sh')
+  local CLEAN_FILES=('diff' 'log' 'out' 'exp' 'php' 'sh' 'mem')
   (
     cd tests || exit
     echo "Cleaning tests directory... "
