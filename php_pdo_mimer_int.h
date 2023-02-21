@@ -33,6 +33,9 @@
 #include <mimerrors.h>
 #include "pdo_mimer_error.h"
 
+#if defined(ZTS) && defined(COMPILE_DL_PDO_MIMER)
+ZEND_TSRMLS_CACHE_EXTERN()
+#endif
 
 extern const pdo_driver_t pdo_mimer_driver;
 extern const struct pdo_stmt_methods pdo_mimer_stmt_methods;

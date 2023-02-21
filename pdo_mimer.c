@@ -38,6 +38,13 @@
 #include "php_pdo_mimer.h"
 #include "php_pdo_mimer_int.h"
 
+#ifdef COMPILE_DL_PDO_MIMER
+# ifdef ZTS
+ZEND_TSRMLS_CACHE_DEFINE()
+#endif
+ZEND_GET_MODULE(pdo_mimer)
+#endif
+
 #define REGISTER_ATTR(x) REGISTER_PDO_CLASS_CONST_LONG(#x, (x))
 
 PHP_MINIT_FUNCTION(pdo_mimer) {
@@ -68,17 +75,9 @@ PHP_MINFO_FUNCTION(pdo_mimer) {
     php_info_print_table_end();
 }
 
-/* TODO: check what this does and if is needed */
-#ifdef COMPILE_DL_PDO_MIMER
-# ifdef ZTS
-ZEND_TSRMLS_CACHE_DEFINE()
-# endif
-ZEND_GET_MODULE(pdo_mimer)
-#endif
-
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
-#define ZEND_PARSE_PARAMETERS_NONE() \
+# define ZEND_PARSE_PARAMETERS_NONE() \
 	ZEND_PARSE_PARAMETERS_START(0, 0) \
 	ZEND_PARSE_PARAMETERS_END()
 #endif

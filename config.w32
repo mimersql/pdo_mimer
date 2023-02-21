@@ -1,7 +1,15 @@
-ARG_ENABLE('pdo_mimer', 'pdo_mimer support', 'no');
+ARG_WITH('pdo-mimer', 'Mimer SQL support for PDO', 'no');
 
 if (PHP_PDO_MIMER != 'no') {
-	AC_DEFINE('HAVE_PDO_MIMER', 1, 'pdo_mimer support enabled');
+    if (CHECK_LIB("mimapi64.lib", "pdo_mimer", PHP_PDO_MIMER) &&
+        CHECK_HEADER_ADD_INCLUDE("mimerapi.h", "CFLAGS_PDO_MIMER",
+            PHP_PDO_MIMER + "\\include;" +
+            PHP_PHP_BUILD + "\\include\\mimer;" +
+            PHP_PDO_MIMER)) {
+        EXTENSION('pdo_mimer', 'pdo_mimer.c mimer_driver.c mimer_stmt.c', null, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
 
-	EXTENSION('pdo_mimer', 'pdo_mimer.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+        ADD_EXTENSION_DEP('pdo_mimer', 'pdo');
+    } else {
+        WARNING("pdo_mimer not enabled; libraries and headers not found");
+    }
 }
