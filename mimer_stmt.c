@@ -526,7 +526,7 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
     if (return_code == MIMER_PARAM_OUTPUT)
         return 1;
 
-    if (Z_TYPE_P(parameter) == IS_NULL)
+    if (Z_TYPE_P(parameter) == IS_NULL || PDO_PARAM_TYPE(param_type) == PDO_PARAM_NULL)
         return MimerSetNull(mimer_stmt->stmt, paramno);
 
     if (!MIMER_SUCCEEDED(return_code = MimerParameterType(mimer_stmt->stmt, paramno)))
