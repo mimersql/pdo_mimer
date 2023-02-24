@@ -593,7 +593,6 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
 
 static int skip_param_event(enum pdo_param_event event_type) {
 	switch (event_type) {
-		case PDO_PARAM_EVT_EXEC_POST:
 		case PDO_PARAM_EVT_FETCH_POST:
 		case PDO_PARAM_EVT_FETCH_PRE:
 		case PDO_PARAM_EVT_FREE:
