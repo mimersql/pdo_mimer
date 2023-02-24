@@ -32,13 +32,7 @@ class PDOMimerTestSetup {
 
         // Execute generated script
         foreach($script as $statement){
-            try {
-                if ($db->exec($statement) === false) // docs on PDO::exec suggest === here
-                    die("Could not execute statement:\n'$statement'");
-            } catch (PDOException $e){
-//                die($e->getMessage());
-                print $e->getMessage() . "\n";
-            }
+            @$db->exec($statement);
         }
     }
 
