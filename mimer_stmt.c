@@ -591,6 +591,19 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
 }
 
 
+static int skip_param_event(enum pdo_param_event event_type) {
+	switch (event_type) {
+		case PDO_PARAM_EVT_EXEC_POST:
+		case PDO_PARAM_EVT_FETCH_POST:
+		case PDO_PARAM_EVT_FETCH_PRE:
+		case PDO_PARAM_EVT_FREE:
+		case PDO_PARAM_EVT_NORMALIZE:
+			return true;
+		default:
+			return false;
+	}
+}
+
 /**
  * @brief Handle bound parameters and columns.
  * @param stmt [in] A pointer to the PDOStatement handle object.
@@ -608,6 +621,9 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
     MimerReturnCode return_code = MIMER_SUCCESS;
     int16_t paramno = param->paramno + 1; /* Mimer SQL is one-indexed */
 
+	if (skip_param_event(event_type))
+		return true;
+
     if (mimer_stmt->stmt == NULL || !param->is_param) { /* if not param, is of column type */
         return 1;
     }
@@ -617,6 +633,12 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
 //                               "Parameter number is larger than 32767. Mimer only supports up to 32767 parameters");
         return false;
     }
+
+	/* cannot set parameters if a cursor is currently open */
+	if (mimer_stmt->cursor.is_open && !pdo_mimer_cursor_closer(stmt)) {
+		pdo_mimer_stmt_error();
+		return false;
+	}
 
     /**
      * Values bound with PDOStatement::bindParam() cannot be touched until PDO_PARAM_EVT_EXEC_PRE. When using
@@ -635,12 +657,6 @@ static int pdo_mimer_stmt_param_hook(pdo_stmt_t *stmt, struct pdo_bound_param_da
             break;
 
         case PDO_PARAM_EVT_EXEC_PRE:
-            /* cannot set parameters if a cursor is currently open */
-            if (mimer_stmt->cursor.is_open && !pdo_mimer_cursor_closer(stmt)) {
-				pdo_mimer_stmt_error();
-				return false;
-            }
-
             if (Z_ISREF(param->parameter)){ /* bindParam() was used, let's set those params */
                 /* if param is not ref, that means bindValue() was used which should have been set in EVT_ALLOC */
                 return_code = pdo_mimer_stmt_set_params(stmt, Z_REFVAL(param->parameter), paramno, param->param_type);
