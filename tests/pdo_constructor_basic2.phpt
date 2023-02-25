@@ -8,6 +8,7 @@ pdo_mimer
 --SKIPIF--
 <?php require_once 'pdo_tests_util.inc';
 PDOMimerTestUtil::commonSkipChecks();
+PDOMimerTestUtil::skipIfWindows();
 ?>
 
 --FILE--

@@ -162,6 +162,11 @@ class PDOMimerTestUtil {
         return;
     }
 
+    public static function skipIfWindows(): void {
+        if (php_uname('s') == 'Windows NT')
+            die('skip feature unsupported on Windows');
+    }
+
     /**
      * Locks the PHP process's memory limit and 
      * returns the amount of memory (in bytes) still

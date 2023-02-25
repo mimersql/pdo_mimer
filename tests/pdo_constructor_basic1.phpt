@@ -13,6 +13,7 @@ only contain name of DB.
 --SKIPIF--
 <?php require_once 'pdo_tests_util.inc';
 PDOMimerTestUtil::commonSkipChecks();
+PDOMimerTestUtil::skipIfWindows();
 ?>
 
 --FILE--

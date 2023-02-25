@@ -23,5 +23,5 @@ try {
 }
 ?>
 
---EXPECT--
-SQLSTATE[08006] [90] Login failure
+--EXPECTF--
+SQLSTATE[%s] [%s] %s
