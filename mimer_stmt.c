@@ -895,19 +895,8 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
  * @throws PDOException if PDO Statement object, PDO Mimer statement object, or MimerStatement is uninitialized.
  */
 PHP_METHOD(PDOStatement_MimerSQL_Ext, mimerAddBatch) {
-    pdo_stmt_t *stmt = Z_PDO_STMT_P(ZEND_THIS); /* gets PDOStatement object from which mimerAddBatch() was called on */
-    /* get PDOException class object, so we can throw an exception on an error */
-    zend_class_entry *pdoexception_ce =  zend_hash_str_find_ptr(CG(class_table), "pdoexception", sizeof("pdoexception") -1);
-	pdo_mimer_stmt *mimer_stmt = stmt ? stmt->driver_data : NULL;
-
-    if (!stmt || !stmt->dbh || !mimer_stmt || !mimer_stmt->stmt) {
-        zend_throw_error(pdoexception_ce,
-                         !stmt ? "PDOStatement object is uninitialized." :
-                         !stmt->dbh ? "PDO object is uninitialized." :
-                         !mimer_stmt? "PDO Mimer handle object is uninitialized." :
-                         "A MimerStatement has not yet been prepared.");
-        RETURN_THROWS();
-    }
+    pdo_stmt_t *stmt = Z_PDO_STMT_P(ZEND_THIS);
+	pdo_mimer_stmt *mimer_stmt = stmt->driver_data;
 
     if (!MIMER_SUCCEEDED(MimerAddBatch(mimer_stmt->stmt))) {
             pdo_mimer_stmt_error();
