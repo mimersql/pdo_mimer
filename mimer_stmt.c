@@ -287,11 +287,12 @@ static int pdo_mimer_stmt_get_col_data(pdo_stmt_t *stmt, int colno, zval *result
         /* TODO: Await update to API.
             Temporary block for handling types which currently gives segfault
             when checking string length.  */
-        const int max_chars = 100;
-        char str[max_chars];
+#define MIMER_MAX_DECIMAL_CHARS 100
+        char *str = ecalloc(MIMER_MAX_DECIMAL_CHARS, sizeof(char));
 
-        if (MIMER_SUCCEEDED(return_code = MimerGetString8(mimer_stmt->stmt, mim_colno, str, max_chars)))
+        if (MIMER_SUCCEEDED(return_code = MimerGetString8(mimer_stmt->stmt, mim_colno, str, MIMER_MAX_DECIMAL_CHARS)))
             ZVAL_STRING(result, str);
+		efree(str);
     }
 
     else if (MimerIsBlob(column_type)) {
