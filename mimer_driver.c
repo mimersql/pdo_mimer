@@ -578,7 +578,7 @@ static bool pdo_mimer_create_session(pdo_dbh_t *dbh) {
 	struct pdo_data_src_parser opts[] = {
 		{ "dbname", NULL, 0 },
 		{ "user",   "",   0 },
-		{ "pass",   NULL, 0 },
+		{ "password",   NULL, 0 },
 	};
 
 	php_pdo_parse_data_source(dbh->data_source, dbh->data_source_len, opts, num_opts);

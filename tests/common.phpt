@@ -11,14 +11,10 @@ i.e. the common PDO tests. Returns some information
 needed for the common tests to connect to the test DB.
 
 --REDIRECTTEST--
-require_once __DIR__ . '/tests/pdo_tests_util.inc';
-
-$util = new PDOMimerTestUtil();
-
 $test_settings = ['ENV' => [
-            'PDOTEST_DSN'  => $util->getFullDSN(),
-            'PDOTEST_USER' => $util->getConfigValue("connection->dsn->user"),
-            'PDOTEST_PASS' => $util->getConfigValue("connection->dsn->password"),
+            'PDOTEST_DSN'  => getenv('PDOMIMER_TEST_DSN') ?: 'mimer:',
+            'PDOTEST_USER' => getenv('PDOMIMER_TEST_USER') ?: 'MIMER_ADM',
+            'PDOTEST_PASS' => getenv('PDOMIMER_TEST_PASS') ?: 'adm',
         ], 'TESTS'   => is_dir('ext/pdo/tests') ? 'ext/pdo/tests' : getenv('REDIR_TEST_DIR'),
 ];
 
