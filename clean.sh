@@ -56,7 +56,7 @@ clean_tests_dir() {
 clean() {
   if [ -n "${make_clean}" ]; then [[ -f "Makefile" ]] && make clean; fi
   if [ -n "${phpize_clean}" ]; then  phpize --clean; fi
-  if [ -n "${more_clean}" ]; then  ([[ -f "*.dep" ]] && rm "*.dep") || ([[ -d "include" ]] && rm -r "include"); fi
+  if [ -n "${more_clean}" ]; then  (rm "*.loT *.dep *~" 2> /dev/null); ([[ -d "include" ]] && rm -r "include"); fi
   if [ -n "${clean_tests}" ]; then clean_tests_dir; fi
 }
 

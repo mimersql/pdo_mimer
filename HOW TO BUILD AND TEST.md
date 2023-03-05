@@ -7,7 +7,7 @@ Steps for building PDO Mimer
 * PHP (Only tested with v8.1.7)
 * PDO extension (should be included with your PHP installation)
 * Mimer Library
-* PDO Mimer source code (developement branch as of 16/06-2022)
+* PDO Mimer source code (development branch as of 16/06-2022)
 
 ## Standalone
 

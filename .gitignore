@@ -32,12 +32,7 @@ php_test_results_*.txt
 phpt.*
 run-test-info.php
 run-tests.php
-tests/**/*.diff
-tests/**/*.out
-tests/**/*.php
-tests/**/*.exp
-tests/**/*.log
-tests/**/*.sh
-tests/**/*.db
-tests/**/*.mem
+tests/
+!tests/*.phpt
 tmp-php.ini
+*.loT
