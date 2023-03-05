@@ -33,7 +33,9 @@ phpt.*
 run-test-info.php
 run-tests.php
 tests/
-!tests/*.phpt
+!tests/**/*.phpt
+!tests/**/*.inc
+!tests/**/*.json
 tmp-php.ini
 *.loT
 *.env
