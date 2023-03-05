@@ -36,3 +36,4 @@ tests/
 !tests/*.phpt
 tmp-php.ini
 *.loT
+*.env
