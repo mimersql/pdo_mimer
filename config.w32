@@ -1,7 +1,8 @@
 ARG_WITH('pdo-mimer', 'Mimer SQL support for PDO', 'no');
 
 if (PHP_PDO_MIMER != 'no') {
-    if (CHECK_LIB("mimapi64.lib", "pdo_mimer", PHP_PDO_MIMER) &&
+    lib = "mimapi" + (X64 ? "64" : "32") + ".lib";
+    if (CHECK_LIB(lib, "pdo_mimer", PHP_PDO_MIMER) &&
         CHECK_HEADER_ADD_INCLUDE("mimerapi.h", "CFLAGS_PDO_MIMER",
             PHP_PDO_MIMER + "\\include;" +
             PHP_PHP_BUILD + "\\include\\mimer;" +
