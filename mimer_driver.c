@@ -326,7 +326,6 @@ static zend_long mimer_handle_doer(pdo_dbh_t *dbh, const zend_string *sql) {
  * @param unquoted A string of the SQL statement before being quoted
  * @param param_type [in] The parameter's data type.
  * @return The quoted SQL statement
- * @todo Add LOB support
  */
 static zend_string* mimer_handle_quoter(pdo_dbh_t *dbh, const zend_string *unquoted, enum pdo_param_type param_type) {
 	if (param_type == PDO_PARAM_LOB)

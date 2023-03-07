@@ -428,17 +428,12 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
     char data_buf[MIMER_LOB_IN_CHUNK];
     ssize_t nread_bytes;
 
-    /** Try to make a PHP stream from the resource variable
-        TODO: More precise error info */
+    /** Try to make a PHP stream from the resource variable */
     if (Z_TYPE_P(parameter) != IS_RESOURCE) {
-//        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
-//                               "Expected a resource for LOB parameter");
         return return_code;
     }
     php_stream_from_zval_no_verify(stm, parameter);
     if (!stm){
-//        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
-//                               "Expected a stream resource for LOB parameter");
         return return_code;
     }
 
@@ -447,9 +442,6 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
         return return_code;
     lob_type = return_code;
     if (!(MimerIsBlob(lob_type) || MimerIsClob(lob_type) || MimerIsNclob(lob_type))){
-        /** TODO: More precise error code */
-//        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
-//                               "Expected BLOB, CLOB or NCLOB column type");
         return return_code;
     }
 
@@ -458,9 +450,6 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
     if (lob_len == 0)
         return MimerSetLob(mimer_stmt->stmt, paramno, 0, &lob_handle);
     else if (lob_len < 0){
-        /** TODO: error code */
-//        pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = lob_len,
-//                               "Error while calculating LOB length");
         return return_code;
     }
 
@@ -497,8 +486,6 @@ static MimerReturnCode pdo_mimer_set_lob_data(pdo_stmt_t *stmt, zval *parameter,
             }
 
             if(nvalid_bytes <= 0){
-//                pdo_mimer_custom_error(stmt, SQLSTATE_GENERAL_ERROR, return_code = PDO_MIMER_GENERAL_ERROR,
-//                               "Error when reading NCLOB resource");
                 break;
             }
             return_code = MimerSetNclobData8(&lob_handle, data_buf, nvalid_bytes);
@@ -535,7 +522,6 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
 
     mim_type = return_code;
     if (MimerIsInt32(mim_type)) {
-        // TODO: Overflow check
         zend_long val = zval_get_long(parameter);
         return_code = MimerSetInt32(mimer_stmt->stmt, paramno, (int32_t) val);
     }
@@ -548,7 +534,6 @@ static MimerReturnCode pdo_mimer_stmt_set_params(pdo_stmt_t *stmt, zval *paramet
         return_code = MimerSetBoolean(mimer_stmt->stmt, paramno, val);
     }
     else if (MimerIsFloat(mim_type)) {
-        // TODO: Overflow check
         double val = zval_get_double(parameter);
         return_code = MimerSetFloat(mimer_stmt->stmt, paramno, (float)val);
     }
@@ -857,7 +842,6 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
     array_init(return_value);
     array_init(&flags);
 
-    /* TODO: primary_key, not_null, unique_key, multiple_key, auto_increment when/if supported by C API*/
     if (MimerIsUnsigned(col_type))
         add_next_index_string(&flags, "unsigned");
     if (MimerIsBlob(col_type) || MimerIsClob(col_type) || MimerIsNclob(col_type))
@@ -881,7 +865,6 @@ static int pdo_mimer_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *re
     add_assoc_string(return_value, "type", php_type);
     if ((native_type = get_native_type_string(col_type)) != NULL)
         add_assoc_string(return_value, "native_type", native_type);
-    /* TODO: scale, table when/if supported by C API */
 
     add_assoc_zval(return_value, "flags", &flags); /* MySQL does this, adds flags array to returned "dict" in PHP */
     return SUCCESS;

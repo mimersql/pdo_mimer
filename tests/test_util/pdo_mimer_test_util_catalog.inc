@@ -163,15 +163,6 @@ class PDOMimerTestCatalog {
             [1,     true]
         ];
 
-        /** TODO 
-        $colInter = [
-            
-        ];
-        $valsInter = [
-            
-        ];
-        */
-
         $names = ["Int", "Floats", "Str", "Nstr", "Lobs", 
                     "Bin", "Date", "Bool"];
 

@@ -88,8 +88,7 @@ class PDOMimerTestUtil {
 
     /**
      * Returns the name for the OS user that is running the 
-     * PHP script. 
-     * TODO: Not tested on windows yet.
+     * PHP script.
      */
     public function getCurrentOsUser(): string {
         if (PHP_OS_FAMILY === "Windows") {
@@ -157,7 +156,6 @@ class PDOMimerTestUtil {
      * section of every test.
      */
     public static function commonSkipChecks(): void {
-        // TODO: 
         // $this->skipIf(...);
         return;
     }

@@ -61,7 +61,6 @@ PHP_MINIT_FUNCTION(pdo_mimer) {
     return SUCCESS;
 }
 
-/* TODO: check what more needs to be done here */
 PHP_MSHUTDOWN_FUNCTION(pdo_mimer) {
     php_pdo_unregister_driver(&pdo_mimer_driver);
 
