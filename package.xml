@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package
+    xmlns="http://pear.php.net/dtd/package-2.0"
+    xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    version="2.0"
+    xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+
+    <name>pdo_mimer</name>
+    <channel>pecl.php.net</channel>
+    <summary>Mimer SQL support for PDO</summary>
+    <description>The official PHP PDO extension for Mimer SQL</description>
+    <lead>
+        <name>Fredrik Ålund</name>
+        <!-- <user>fral</user> -->
+        <email>fredrik.alund@mimer.com</email>
+    </lead>
+    <developer>
+        <name>Alexander Hedberg</name>
+        <!-- <user>alhedberg</user> -->
+        <email>alexander.hedberg@mimer.com</email>
+    </developer>
+    <developer>
+        <name>Ludwig von Feilitzen</name>
+        <!-- <user>ludwig</user> -->
+        <email>ludwig.vonfeilitzen@mimer.com</email>
+    </developer>
+    <date>2023-03-09</date>
+    <version>
+        <release>1.0.0</release>
+        <api>1.0.0</api>
+    </version>
+    <stability>
+        <release>stable</release>
+        <api>stable</api>
+    </stability>
+    <license uri="http://www.php.net/license">PHP License</license>
+    <notes>-</notes>
+    <contents>
+        <dir name="/">
+            <file name="config.m4"            role="src" />
+            <file name="config.w32"           role="src" />
+            <file name="mimer_driver.c"       role="src" />
+            <file name="mimer_stmt.c"         role="src" />
+            <file name="mimer_stmt.stub.php"  role="src" />
+            <file name="mimer_stmt_arginfo.h" role="src" />
+            <file name="pdo_mimer.c"          role="src" />
+            <file name="pdo_mimer_error.h"    role="src" />
+            <file name="php_pdo_mimer.h"      role="src" />
+            <file name="php_pdo_mimer_int.h"  role="src" />
+
+            <file name="LICENSE"   role="doc" />
+            <file name="README.md" role="doc" />
+
+            <dir name="tests">
+                <dir name="test_util">
+                    <file name="pdo_mimer_test_util_catalog.inc"     role="test" />
+                    <file name="pdo_mimer_test_util_conf.inc"        role="test" />
+                    <file name="pdo_mimer_test_util_db_entities.inc" role="test" />
+                    <file name="pdo_mimer_test_util_db_info.inc"     role="test" />
+                    <file name="pdo_mimer_test_util.inc"             role="test" />
+                    <file name="pdo_mimer_test_util_preset.inc"      role="test" />
+                    <file name="pdo_mimer_test_util_setup.inc"       role="test" />
+                    <file name="pdo_mimer_test_util_sqlgen.inc"      role="test" />
+                    <file name="pdo_mimer_test_util_types.inc"       role="test" />
+                    <file name="test_config.json"                    role="test" />
+                </dir>
+
+                <file name="common.phpt"                          role="test" />
+                <file name="pdo_beginTransaction_basic1.phpt"     role="test" />
+                <file name="pdo_commit_basic1.phpt"               role="test" />
+                <file name="pdo_constructor_basic1.phpt"          role="test" />
+                <file name="pdo_constructor_basic2.phpt"          role="test" />
+                <file name="pdo_constructor_basic3.phpt"          role="test" />
+                <file name="pdo_constructor_basic4.phpt"          role="test" />
+                <file name="pdo_constructor_basic5.phpt"          role="test" />
+                <file name="pdo_constructor_error1.phpt"          role="test" />
+                <file name="pdo_constructor_error2.phpt"          role="test" />
+                <file name="pdo_exec_basic1.phpt"                 role="test" />
+                <file name="pdo_exec_basic2.phpt"                 role="test" />
+                <file name="pdo_exec_basic3.phpt"                 role="test" />
+                <file name="pdo_gen_extract_lobs1.phpt"           role="test" />
+                <file name="pdo_gen_insert_blob2.phpt"            role="test" />
+                <file name="pdo_gen_insert_lobs1.phpt"            role="test" />
+                <file name="pdo_getAttribute_basic1.phpt"         role="test" />
+                <file name="pdo_inTransaction_basic1.phpt"        role="test" />
+                <file name="pdo_lastInsertId_nosupport.phpt"      role="test" />
+                <file name="pdo_prepare_basic1.phpt"              role="test" />
+                <file name="pdo_prepare_basic2.phpt"              role="test" />
+                <file name="pdo_prepare_error1.phpt"              role="test" />
+                <file name="pdo_prepare_error2.phpt"              role="test" />
+                <file name="pdo_query_basic1.phpt"                role="test" />
+                <file name="pdo_quoter.phpt"                      role="test" />
+                <file name="pdo_rollBack_basic1.phpt"             role="test" />
+                <file name="pdo_setAttribute_basic1.phpt"         role="test" />
+                <file name="pdo_stmt_bindColumn_basic1.phpt"      role="test" />
+                <file name="pdo_stmt_bindParam_basic1.phpt"       role="test" />
+                <file name="pdo_stmt_bindValue_basic1.phpt"       role="test" />
+                <file name="pdo_stmt_closeCursor_basic1.phpt"     role="test" />
+                <file name="pdo_stmt_columnCount_basic1.phpt"     role="test" />
+                <file name="pdo_stmt_debugDumpParams_basic1.phpt" role="test" />
+                <file name="pdo_stmt_execute_basic1.phpt"         role="test" />
+                <file name="pdo_stmt_execute_basic2.phpt"         role="test" />
+                <file name="pdo_stmt_fetchAll_basic1.phpt"        role="test" />
+                <file name="pdo_stmt_fetch_basic1.phpt"           role="test" />
+                <file name="pdo_stmt_fetch_basic2.phpt"           role="test" />
+                <file name="pdo_stmt_fetch_basic3.phpt"           role="test" />
+                <file name="pdo_stmt_fetch_basic4.phpt"           role="test" />
+                <file name="pdo_stmt_fetch_basic5.phpt"           role="test" />
+                <file name="pdo_stmt_fetch_basic6.phpt"           role="test" />
+                <file name="pdo_stmt_fetch_basic7.phpt"           role="test" />
+                <file name="pdo_stmt_fetchColumn_basic1.phpt"     role="test" />
+                <file name="pdo_stmt_fetchObject_basic1.phpt"     role="test" />
+                <file name="pdo_stmt_getAttribute_nosupport.phpt" role="test" />
+                <file name="pdo_stmt_getColumnMeta1.phpt"         role="test" />
+                <file name="pdo_stmt_getIterator_basic1.phpt"     role="test" />
+                <file name="pdo_stmt_mimerAddBatch_basic1.phpt"   role="test" />
+                <file name="pdo_stmt_rowCount_nosupport.phpt"     role="test" />
+                <file name="pdo_stmt_setAttribute_nosupport.phpt" role="test" />
+                <file name="pdo_stored_procedure1.phpt"           role="test" />
+                <file name="pdo_stored_procedure2.phpt"           role="test" />
+                <file name="pdo_stored_procedure3.phpt"           role="test" />
+                <file name="pdo_tests_util.inc"                   role="test" />
+            </dir>
+        </dir>
+    </contents>
+    <dependencies>
+        <required>
+            <php>
+                <min>8.1.0</min>
+            </php>
+            <pearinstaller>
+                <min>1.4.3</min>
+            </pearinstaller>
+            <extension>
+                <name>pdo</name>
+            </extension>
+        </required>
+    </dependencies>
+    <providesextension>pdo-mimer</providesextension>
+    <extsrcrelease />
+
+    <changelog>
+        <release>
+            <date>2022-03-07</date>
+            <time>08:13:44</time>
+            <version>
+                <release>1.0.0</release>
+                <api>1.0.0</api>
+            </version>
+            <stability>
+                <release>stable</release>
+                <api>stable</api>
+            </stability>
+            <license uri="http://www.php.net/license">PHP License</license>
+            <notes>
+Feature release of Mimer SQL PDO driver version 1.0.0
+
+Compatible with PHP 8.1+
+
+            </notes>
+        </release>
+    </changelog>
+</package>
