@@ -32,7 +32,14 @@ class PDOMimerTestSetup {
 
         // Execute generated script
         foreach($script as $statement){
-            @$db->exec($statement);
+                try {
+                    @$db->exec($statement);
+                } catch (PDOException $e) {
+                    // no clean way to check if procedures exist so throw away exceptions for drop and create errors
+                    if (!str_starts_with($e->getMessage(), "SQLSTATE[HY000]: General error: -12517 ")
+                        && !str_starts_with($e->getMessage(), "SQLSTATE[HY000]: General error: -12662 "))
+                        throw $e;
+                }
         }
     }
 
