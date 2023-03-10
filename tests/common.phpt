@@ -5,6 +5,12 @@ Mimer SQL
 pdo
 pdo_mimer
 
+--SKIPIF--
+<?php
+if (!is_dir('ext/pdo/tests') && !getenv('REDIR_TEST_DIR'))
+    die("skip can't find PDO tests directory")
+?>
+
 --DESCRIPTION--
 Redirects the test execution to the tests in ext/pdo/tests,
 i.e. the common PDO tests. Returns some information 
