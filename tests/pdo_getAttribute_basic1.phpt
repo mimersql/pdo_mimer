@@ -38,6 +38,8 @@ try {
 } catch (PDOException $e) {
     die($e->getMessage());
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECTREGEX--

@@ -18,10 +18,14 @@ PDOMimerTestUtil::commonSkipChecks();
 $util = new PDOMimerTestUtil();
 $dsn = $util->getFullDSN();
 try {
+    if (!str_ends_with($dsn, ";"))
+        $dsn .= ";";
     $db = new PDO($dsn . "non-existent-option=val");
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

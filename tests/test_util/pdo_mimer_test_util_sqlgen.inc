@@ -49,14 +49,14 @@ class PDOMimerTestSQLGenerator {
      * 'CREATE TABLE example (id INTEGER NOT NULL PRIMARY KEY, name VARCHAR(20)) IN data_bank_name'
      */
     private static function getTableDDL(PDOMimerTestTable $tbl): string{
-        $dbankName = PDOMimerTestConfig::getPropertyValue('databankName');
+        $databank = PDOMimerTestConfig::getDatabank();
         $sql = "CREATE TABLE ";
         $sql .= $tbl->getName() . " (";
         foreach($tbl->getAllColumns() as $col){
             $sql .= self::getColumnDDL($col) . ", ";
         }
         $sql = substr($sql, 0, -2); // remove last ", "
-        $sql .= ") IN $dbankName"; 
+        $sql .= ") IN $databank";
         return $sql;
     }
 
@@ -84,10 +84,6 @@ class PDOMimerTestSQLGenerator {
                 $sql .= " " . self::$formatVal4SQL($col->getType(), $def);
         }
         return $sql;
-    }
-
-    public static function getStoredProcedureDDL(PDOMimerTestStoredProcedure $procedure): string {
-        return "$procedure";
     }
 
     /**

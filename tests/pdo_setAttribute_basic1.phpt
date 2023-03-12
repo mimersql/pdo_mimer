@@ -40,6 +40,8 @@ try {
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECTF--

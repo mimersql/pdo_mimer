@@ -17,6 +17,11 @@ class PDOMimerTestDBInfo {
                 $viewName = "EXT_IDENTS";
                 $idColumn = "IDENT_NAME";
                 break;
+            case "PROCEDURE":
+                $viewName = "EXT_OBJECT_PRIVILEGES";
+                $idColumn = "OBJECT_NAME";
+                $selectFormat .= " AND OBJECT_TYPE = 'PROCEDURE'";
+                break;
             default:
                 die("objectExists() does not yet support checking type $objectType\n");
         }

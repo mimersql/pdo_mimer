@@ -20,14 +20,20 @@ PDOMimerTestUtil::skipIfWindows();
 <?php require_once 'pdo_tests_util.inc';
 $util = new PDOMimerTestUtil();
 $dsn = $util->getFullDSN();
-$dbName = $util->getConfigValue("connection->dsn->dbname");
+$dbName = PDOMimerTestConfig::getDBName();
 
 try {
     // Make sure there is a OS_USER login
     $osUserName = $util->getCurrentOsUser();
     $db = new PDO($dsn);
-    $db->exec("CREATE IDENT $osUserName AS USER USING 'pw'");
-    $db->exec("ALTER IDENT $osUserName ADD OS_USER '$osUserName'");
+    try {
+        $db->exec("CREATE IDENT $osUserName AS USER USING 'pw'");
+        $db->exec("ALTER IDENT $osUserName ADD OS_USER '$osUserName'");
+    } catch (PDOException $e) {
+        // Ignore error if ident already exists
+        if(!str_contains($e->getMessage(), "-12558 Ident named $osUserName already exists"))
+            throw $e;
+    }
     $db = null;
 
     // Make sure there is a default database
@@ -48,6 +54,8 @@ try {
         $db->exec("DROP IDENT $osUserName");
     }
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

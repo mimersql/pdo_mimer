@@ -13,14 +13,14 @@ PDOMimerTestUtil::skipIfWindows();
 
 --FILE--
 <?php require_once 'pdo_tests_util.inc';
-$util = new PDOMimerTestUtil();
-$dsnArr = $util->getConfigValue("connection->dsn");
 
 try {
-    $db = new PDO("mimer:" . $dsnArr['dbname'], $dsnArr['user'], $dsnArr['password']);
+    $db = new PDO(PDOMimerTestConfig::getDSN());
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

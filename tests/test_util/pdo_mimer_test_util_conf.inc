@@ -4,44 +4,75 @@
 *  between the tests and the test configuration file.
 */
 class PDOMimerTestConfig {
-    private static string $confFileName = "test_config.json";
-    private static string $filePath;
-    private static $confDict;
+    private static string $dsn = "mimer:";
+    private static string $user;
+    private static string $pass;
+    private static string $dbname = "";
+    private static string $databank = "pdo_tests";
 
     /**
      * Finds, reads and converts the JSON file into an
      * associative array which is saved in $confDict.
      */
-    public static function init() {
-        self::$filePath = dirname(__FILE__) . "/" .  self::$confFileName;
+    public static function init()
+    {
+        if (false !== ($dsn = getenv('PDOMIMER_TEST_DSN'))) {
+            if (str_contains($dsn, 'dbname=')) {
+                $dbname = substr($dsn, strpos($dsn, 'dbname=') + strlen('dbname='));
+                if (str_contains($dbname, ';'))
+                    self::$dbname = substr($dbname, 0, strpos($dbname, ';'));
 
-        if (!file_exists(self::$filePath))
-            die("Could not find test configuration file\n"); 
-            
-        $file_as_str = file_get_contents(self::$filePath);
-        if (!$file_as_str)
-            die("Could not read test configuration file\n");
+                self::$dbname = $dbname;
+            }
 
-        self::$confDict = json_decode($file_as_str, true);
-        if (self::$confDict === null)
-            die("Test configuration file could not be interpreted as JSON\n");
+            self::$dsn = $dsn;
+        }
+
+        if (false !== ($databank = getenv('PDOMIMER_TEST_DATABANK')))
+            self::$databank = $databank;
+
+        self::$user = getenv('PDOMIMER_TEST_USER');
+        if (false !== self::$user and !str_contains(self::$dsn, 'user'))
+            self::$dsn .= ";user=" . self::$user;
+
+        self::$pass = getenv('PDOMIMER_TEST_PASS');
+        if (false !== self::$pass and !str_contains(self::$dsn, 'password'))
+            self::$dsn .= ";password=" . self::$pass;
     }
 
     /**
-     * Returns the value of a property from the configuration.
-     * Access nested properties by using '->'.
-     * If property value is in itself an object with multiple
-     * properties, this is returned as an associative array.
+     * @return string
      */
-    public static function getPropertyValue($property): mixed {
-        $val = self::$confDict;
-        foreach(explode("->", $property) as $prop){
-            if (!array_key_exists($prop, $val))
-                die("Could not access configuration property $prop\n");
-            $val = $val[$prop];
-        }
-        return $val;
+    public static function getUser(): string
+    {
+        return self::$user;
     }
+
+    /**
+     * @return string
+     */
+    public static function getPassword(): string
+    {
+        return self::$pass;
+    }
+
+    /**
+     * @return string
+     */
+    public static function getDBName(): string
+    {
+        return self::$dbname;
+    }
+
+    /**
+     * @return string
+     */
+    public static function getDatabank(): string
+    {
+        return self::$databank;
+    }
+
+
 
     /**
      * Returns a string based on the content of the DSN JSON object
@@ -49,12 +80,7 @@ class PDOMimerTestConfig {
      * mimer:<propertyname1>=<propertyvalue2>;<propertyname1>=<propertyvalue2>...;
      */
     public static function getDSN(): string {
-        $dsnData = self::$confDict['connection']['dsn'];
-        $dsn = "mimer:";
-        foreach($dsnData as $pname => $pval){
-            $dsn .= $pname . "=" . $pval . ";";
-        }
-        return $dsn;
+        return self::$dsn;
     }
 }
 

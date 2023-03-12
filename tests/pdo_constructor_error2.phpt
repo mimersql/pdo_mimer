@@ -13,14 +13,18 @@ PDOMimerTestUtil::commonSkipChecks();
 --FILE--
 <?php require_once 'pdo_tests_util.inc';
 $util = new PDOMimerTestUtil();
-$dsnArr = $util->getConfigValue("connection->dsn");
+$dbname = PDOMimerTestConfig::getDBName();
+$user = PDOMimerTestConfig::getUser();
+$pass = PDOMimerTestConfig::getPassword();
 
 try {
-    $db = new PDO("mimer:{$dsnArr['dbname']}", $dsnArr['user'], $dsnArr['password'] . "wrong");
-    $db->exec("SELECT * FROM system.manyrows");
+    $db = new PDO("mimer:dbname=$dbname", $user, $pass . "wrong");
+    $db->exec("SELECT * FROM SYSTEM.MANYROWS");
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECTF--

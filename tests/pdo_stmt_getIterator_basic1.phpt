@@ -35,11 +35,16 @@ try {
             
             if($val !== $expVal)
                 die("In column $colName:\nExpected: $expVal\nActual: $val");
-        }   
+        }
+
+    $it = null;
 
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+$stmt = null;
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

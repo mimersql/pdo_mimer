@@ -48,6 +48,8 @@ function test($table, $dsn): ?string {
     }
 }
 
+$stmt = null;
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

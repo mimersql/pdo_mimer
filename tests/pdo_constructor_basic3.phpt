@@ -19,7 +19,7 @@ PDOMimerTestUtil::skipIfWindows();
 <?php require_once 'pdo_tests_util.inc';
 $util = new PDOMimerTestUtil();
 $dsn = $util->getFullDSN();
-$dbName = $util->getConfigValue("connection->dsn->dbname");
+$dbName = PDOMimerTestConfig::getDBName();
 
 try {
     // Make sure there is a OS_USER login
@@ -43,6 +43,8 @@ try {
         $db->exec("DROP IDENT $identName");
     }
 }
+
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

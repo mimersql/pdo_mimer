@@ -58,16 +58,6 @@ class PDOMimerTestUtil {
     }
 
     /**
-     * Returns the value for a field in the test configuration file.
-     * To access nested fields, seperate the keys with a '->'.
-     * For example: to get the password, use 'connection->dsn->password'. 
-     * To get the entire DSN as an assoc. array, use 'connection->dsn'.
-     */
-    public function getConfigValue(string $key): mixed {
-        return PDOMimerTestConfig::getPropertyValue($key);
-    }
-
-    /**
      * Returns a DSN string with every property in the connection->dsn 
      * object in the test configuration file. 
      * Example: 'mimer:dbname=test_db;user=sysadm;password=sysadm;'
@@ -115,15 +105,16 @@ class PDOMimerTestUtil {
      */
     public function objectExists(string $objectType, string $objectId) {
         return PDOMimerTestDBInfo::objectExists($objectType, $objectId);
-    } 
+    }
 
     /**
      * Selects and sets up preset.
-     * @param executeDML controls whether to run the DML statements.
+     * @param string $preset $preset name of the preset to be selected.
+     * @param bool $executeDML $executeDML controls whether to run the DML statements.
      * If false, DML statements can be run later using executeDML().
      */
-    public function executePreset(string $dbname, bool $executeDML = true){
-        $this->selected = PDOMimerTestCatalog::getPreset($dbname);
+    public function executePreset(string $preset, bool $executeDML = true){
+        $this->selected = PDOMimerTestCatalog::getPreset($preset);
         PDOMimerTestSetup::resetDatabank();
         PDOMimerTestSetup::executeDDL($this->selected);
 

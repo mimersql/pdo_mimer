@@ -23,6 +23,12 @@ class PDOMimerTestSetup {
         self::createTestBank($db);
     }
 
+    public static function tearDown(): void {
+        $db = new PDO(PDOMimerTestConfig::getDSN());
+        if (self::testBankExists($db))
+            self::dropTestBank($db);
+    }
+
     /**
      * Takes an array of SQL statements and tries executing
      * them using PDO::exec()
@@ -32,21 +38,14 @@ class PDOMimerTestSetup {
 
         // Execute generated script
         foreach($script as $statement){
-                try {
-                    @$db->exec($statement);
-                } catch (PDOException $e) {
-                    // no clean way to check if procedures exist so throw away exceptions for drop and create errors
-                    if (!str_starts_with($e->getMessage(), "SQLSTATE[HY000]: General error: -12517 ")
-                        && !str_starts_with($e->getMessage(), "SQLSTATE[HY000]: General error: -12662 "))
-                        throw $e;
-                }
+            @$db->exec($statement);
         }
     }
 
     private static function testBankExists(PDO $conn): bool {
-        $bankName = PDOMimerTestConfig::getPropertyValue('databankName');
+        $databank = PDOMimerTestConfig::getDatabank();
         $stmt = $conn->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.EXT_DATABANKS " . 
-            "WHERE DATABANK_NAME = '$bankName'");
+            "WHERE DATABANK_NAME = '$databank'");
         if (!$stmt)
             die("Error when checking test databank existance");
         $rowCnt = $stmt->fetch(PDO::FETCH_NUM)[0];
@@ -54,14 +53,14 @@ class PDOMimerTestSetup {
     }
 
     private static function createTestBank(PDO $conn): void {
-        $bankName = PDOMimerTestConfig::getPropertyValue('databankName');
-        if ($conn->exec("CREATE DATABANK $bankName") === false)
+        $databank = PDOMimerTestConfig::getDatabank();
+        if ($conn->exec("CREATE DATABANK $databank") === false)
             die("Could not create test databank");
     }
 
     private static function dropTestBank(PDO $conn): void {
-        $bankName = PDOMimerTestConfig::getPropertyValue('databankName');
-        if ($conn->exec("DROP DATABANK $bankName CASCADE") === false)
+        $databank = PDOMimerTestConfig::getDatabank();
+        if ($conn->exec("DROP DATABANK $databank CASCADE") === false)
             die("Could not drop test databank. Other connection open?");
     }
 }

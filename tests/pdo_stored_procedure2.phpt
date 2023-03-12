@@ -29,6 +29,9 @@ try {
 } catch (PDOException $e) {
     die($e);
 }
+
+$stmt = null;
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

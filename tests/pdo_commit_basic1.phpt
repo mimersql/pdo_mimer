@@ -42,6 +42,10 @@ try {
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+$db_1 = null;
+$result = null;
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--

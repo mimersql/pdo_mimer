@@ -35,11 +35,15 @@ try {
                 die("Column $colName: Fetched value ($fetched) differ ". 
                     "from expected value ($colVal)\n");
         }
+        $person = null;
     }
 
 } catch (PDOException $e) {
     print $e->getMessage();
 }
+
+$stmt = null;
+PDOMimerTestSetup::tearDown();
 ?>
 
 --EXPECT--
