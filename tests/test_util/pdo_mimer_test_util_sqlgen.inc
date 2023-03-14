@@ -25,7 +25,8 @@ class PDOMimerTestSQLGenerator {
             $ddl[] = self::getTableDDL($table);
 
         foreach ($testdb->getStoredProcedures() as $procedure) {
-            $ddl[] = $procedure->drop();
+            if (PDOMimerTestDBInfo::objectExists("PROCEDURE", $procedure->getName()))
+                $ddl[] = $procedure->drop();
             $ddl[] = $procedure->create();
         }
 
